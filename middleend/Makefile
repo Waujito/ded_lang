@@ -60,11 +60,11 @@ $(filter %.c.o,$(OBJFILES)): $(BUILD_DIR)/%.c.o: %.c
 $(MIDDLEEND_LIB): $(LIBOBJ)
 	ar rvs $@ $^
 
-$(STATIC_LIB): $(OBJDIRS)
+$(STATIC_LIB): $(OBJDIRS) $(STATIC_LIB_TARGET)/build/tasks_lib.a
 	$(MAKE) -C $(STATIC_LIB_TARGET)
 	cp $(STATIC_LIB_TARGET)/build/tasks_lib.a $(STATIC_LIB)
 
-$(SHARED_LIB): $(OBJDIRS)
+$(SHARED_LIB): $(OBJDIRS) $(STATIC_LIB_TARGET) $(SHARED_LIB_TARGET)/build/vlvm_shared_lib.a
 	$(MAKE) -C $(SHARED_LIB_TARGET)
 	cp $(SHARED_LIB_TARGET)/build/vlvm_shared_lib.a $(SHARED_LIB)
 

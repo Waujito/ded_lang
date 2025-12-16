@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 struct tree_node *tnode_simplify(struct expression *expr, struct tree_node *node);
+int expression_simplify(struct expression *expr, struct expression *simplified);
 
 #ifdef __cplusplus
 }

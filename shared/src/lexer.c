@@ -50,7 +50,7 @@ LexerStatus lexer_clone(struct lexer *old, struct lexer *new) {
 
 	new->words_buflen	= old->words_buflen;
 	new->words_bufidx	= old->words_bufidx;
-	new->words_buf		= old->words_buf;
+	new->words_buf		= wordsbuf_clone;
 
 	if (pvector_clone(&new->tokens, &old->tokens)) {
 		free (wordsbuf_clone);

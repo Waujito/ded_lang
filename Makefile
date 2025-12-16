@@ -1,6 +1,6 @@
 .PHONY: build build_shared build_frontend test_frontend clean distclean
 
-build: build_frontend build_shared build_middleend
+build: build_shared build_frontend build_middleend
 
 build_shared:
 	$(MAKE) -C ./shared

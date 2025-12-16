@@ -42,7 +42,7 @@ struct tree_node *tnode_simplify(struct expression *expr, struct tree_node *node
 		return NULL;
 	}
 
-	if (EXPR_TNODE_IS_NUMBER(node)) {
+	if (EXPR_TNODE_IS_NUMBER(node) || EXPR_TNODE_IS_VARIABLE(node)) {
 		return expr_copy_tnode(expr, node);
 	}
 
@@ -65,25 +65,44 @@ struct tree_node *tnode_simplify(struct expression *expr, struct tree_node *node
 		}
 	}
 
-	if (lnode && rnode && EXPR_TNODE_IS_NUMBER(lnode) && EXPR_TNODE_IS_NUMBER(rnode)) {
+	if (lnode && rnode &&
+		EXPR_TNODE_IS_NUMBER(lnode) && EXPR_TNODE_IS_NUMBER(rnode)) {
+		struct tree_node *nnode = NULL;
+
 		switch (op->idx) {
 			case EXPR_IDX_MULTIPLY:
-				return expr_create_number_tnode(lnode->value.snum * rnode->value.snum);
+				nnode = expr_create_number_tnode(
+					lnode->value.snum * rnode->value.snum);
+				break;
 			case EXPR_IDX_PLUS:
-				return expr_create_number_tnode(lnode->value.snum + rnode->value.snum);
+				nnode = expr_create_number_tnode(
+					lnode->value.snum + rnode->value.snum);
+				break;
 			case EXPR_IDX_MINUS:
-				return expr_create_number_tnode(lnode->value.snum - rnode->value.snum);
+				nnode = expr_create_number_tnode(
+					lnode->value.snum - rnode->value.snum);
+				break;
 			case EXPR_IDX_DIVIDE:
 				if (rnode->value.snum == 0) {
 					eprintf("WARNING: Possible division by zero.");
 					break;
 				}
-				return expr_create_number_tnode(lnode->value.snum / rnode->value.snum);
+				nnode = expr_create_number_tnode(
+					lnode->value.snum / rnode->value.snum);
+				break;
 			case EXPR_IDX_POW:
-				return expr_create_number_tnode(fastpow(
+				nnode = expr_create_number_tnode(fastpow(
 					lnode->value.snum, rnode->value.snum));
+				break;
 			default:
 				break;
+		}
+
+		if (nnode) {
+			if (lnode) tnode_recursive_dtor(lnode, NULL);
+			if (rnode) tnode_recursive_dtor(rnode, NULL);
+
+			return nnode;
 		}
 	}
 	
