@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "lexer/lexer.h"
+#include "lexer.h"
 
 TEST(Lexer, LexerOperates) {
 	const char *lexerText = "mewo 2134 meo1234 m12m m 2 m m m m m 2";
@@ -63,7 +63,15 @@ TEST(Lexer, LexerPlayground) {
 		struct lexer_token *token = NULL;
 		ASSERT_EQ(pvector_get(&lexer.tokens, i, (void **)&token), DS_OK);
 
-		printf("token: type: <%d>, text: <%s>, pos: <%zu>\n", token->tok_type, token->word, token->text_position);
+		printf("token: type: <%d>, pos: <%zu>", token->tok_type, token->text_position);
+
+		if (token->tok_type == LXTOK_NUMBER) {
+			printf(" snum: <%zd>", token->lexer_number);
+		}
+		if (token->tok_type == LXTOK_VARIABLE) {
+			printf(" word: <%s>", token->word);
+		}
+		printf("\n");
 	}
 
 	lexer_dtor(&lexer);

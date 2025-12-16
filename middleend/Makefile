@@ -20,29 +20,29 @@ LDFLAGS := -lm
 
 TESTSRC := test/test_lexer.cpp test/test_parser.cpp
 TESTOBJ := $(TESTSRC:%.cpp=$(BUILD_DIR)/%.cpp.o)
-TEST_LIB_APP := $(BUILD_DIR)/test_frontend
+TEST_LIB_APP := $(BUILD_DIR)/test_middleend
 
-LIBSRC := src/expression_parser.c
+LIBSRC := src/simplifier.c
 LIBOBJ := $(LIBSRC:%.c=$(BUILD_DIR)/%.c.o)
-FRONTEND_LIB := $(BUILD_DIR)/frontend_lib.a
+MIDDLEEND_LIB := $(BUILD_DIR)/middleend_lib.a
 
-FRONTEND_SRC := src/frontend_main.c 
-FRONTEND_OBJ := $(FRONTEND_SRC:%.c=$(BUILD_DIR)/%.c.o)
-FRONTEND_APP := $(BUILD_DIR)/frontend
+MIDDLEEND_SRC := src/middleend_main.c 
+MIDDLEEND_OBJ := $(MIDDLEEND_SRC:%.c=$(BUILD_DIR)/%.c.o)
+MIDDLEEND_APP := $(BUILD_DIR)/middleend
 
-INCPDSRC := $(LIBSRC) $(FRONTEND_SRC)
+INCPDSRC := $(LIBSRC) $(MIDDLEEND_SRC)
 INCPDSRC_CPP := $(TESTSRC)
 incpd := $(INCPDSRC:%.c=$(BUILD_DIR)/%.c.d) $(INCPDSRC_CPP:%.cpp=$(BUILD_DIR)/%.cpp.d)
 
-OBJFILES := $(LIBOBJ) $(TESTOBJ) $(FRONTEND_OBJ)
+OBJFILES := $(LIBOBJ) $(TESTOBJ) $(MIDDLEEND_OBJ)
 OBJDIRS := $(sort $(dir $(OBJFILES)))
 
 .PHONY: build clean run test document build_test objdirs
 
-build: $(FRONTEND_APP) $(STATIC_LIB)
+build: $(MIDDLEEND_APP) $(STATIC_LIB)
 
-frontend: $(FRONTEND_APP)
-	./$(FRONTEND_APP)
+middleend: $(MIDDLEEND_APP)
+	./$(MIDDLEEND_APP)
 
 $(OBJDIRS):
 	mkdir -p $(OBJDIRS)
@@ -57,7 +57,7 @@ $(filter %.c.o,$(OBJFILES)): $(BUILD_DIR)/%.c.o: %.c
 	# $< takes only the FIRST dependency
 	$(CC) $(CFLAGS) $(OBJCFLAGS) -MP -MMD -c $< -o $@
 
-$(FRONTEND_LIB): $(LIBOBJ)
+$(MIDDLEEND_LIB): $(LIBOBJ)
 	ar rvs $@ $^
 
 $(STATIC_LIB): $(OBJDIRS)
@@ -68,16 +68,16 @@ $(SHARED_LIB): $(OBJDIRS)
 	$(MAKE) -C $(SHARED_LIB_TARGET)
 	cp $(SHARED_LIB_TARGET)/build/vlvm_shared_lib.a $(SHARED_LIB)
 
-$(TEST_LIB_APP): $(STATIC_LIB) $(SHARED_LIB) $(FRONTEND_LIB) $(TESTOBJ)
-	$(CXX) $(FLAGS) $(LDFLAGS) $(TESTOBJ) $(FRONTEND_LIB) $(SHARED_LIB) $(STATIC_LIB) -lgtest_main -lgtest -o $(TEST_LIB_APP)
+$(TEST_LIB_APP): $(STATIC_LIB) $(SHARED_LIB) $(MIDDLEEND_LIB) $(TESTOBJ)
+	$(CXX) $(FLAGS) $(LDFLAGS) $(TESTOBJ) $(MIDDLEEND_LIB) $(SHARED_LIB) $(STATIC_LIB) -lgtest_main -lgtest -o $(TEST_LIB_APP)
 
 build_test: $(TEST_LIB_APP)
 
 test: build_test
 	./$(TEST_LIB_APP)
 
-$(FRONTEND_APP): $(FRONTEND_OBJ) $(FRONTEND_LIB) $(STATIC_LIB) $(SHARED_LIB)
-	$(CXX) $(FLAGS) $(LDFLAGS) $(FRONTEND_OBJ) $(FRONTEND_LIB) $(SHARED_LIB) $(STATIC_LIB) -o $@
+$(MIDDLEEND_APP): $(MIDDLEEND_OBJ) $(MIDDLEEND_LIB) $(STATIC_LIB) $(SHARED_LIB)
+	$(CXX) $(FLAGS) $(LDFLAGS) $(MIDDLEEND_OBJ) $(MIDDLEEND_LIB) $(SHARED_LIB) $(STATIC_LIB) -o $@
 
 document: objdirs
 	doxygen doxygen.conf

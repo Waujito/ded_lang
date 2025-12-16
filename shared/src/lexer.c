@@ -2,7 +2,7 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "lexer/lexer.h"
+#include "lexer.h"
 
 #define LEXER_INITIAL_BUFLEN (128)
 
@@ -39,7 +39,28 @@ LexerStatus lexer_dtor(struct lexer *lexer) {
 	return LEXER_STATUS_GEN(LXST_OK);
 }
 
-static LexerStatus lexer_copy_token_word(
+LexerStatus lexer_clone(struct lexer *old, struct lexer *new) {
+	assert (old);
+	assert (new);
+
+	char *wordsbuf_clone = calloc(old->words_buflen, 1);
+	if (!wordsbuf_clone) {
+		return LEXER_STATUS_GEN(LXST_ALLOCATION);
+	}
+
+	new->words_buflen	= old->words_buflen;
+	new->words_bufidx	= old->words_bufidx;
+	new->words_buf		= old->words_buf;
+
+	if (pvector_clone(&new->tokens, &old->tokens)) {
+		free (wordsbuf_clone);
+		return LEXER_STATUS_GEN(LXST_ALLOCATION);
+	}
+
+	return LEXER_STATUS_GEN(LXST_OK);
+}
+
+LexerStatus lexer_copy_token_word(
 	struct lexer *lexer, const char *token_name, size_t token_size,
 	char **token_copied) {
 
@@ -102,33 +123,27 @@ static LexerStatus lexer_parse_number(struct lexer *lexer,
 
 	const char *text_end = text;
 
-	while (isdigit(*text_end))
-		text_end++;
-
-	*text_end_ptr = text_end;
-
-	if (text_end == text) {
+	if (!isdigit(*text_end)) {
 		return LEXER_STATUS_GEN(LXST_NOT_MATCHED_TOKEN);
 	}
+
+	char *strte = NULL;
+	long long num = strtoll(text, &strte, 0);
+	text_end = strte;
+
+	*text_end_ptr = text_end;
 
 	if (isalpha(*text_end)) {
 		return LEXER_STATUS_GEN(LXST_VARIABLE_DIGIT_BEGINNING);
 	}
 
-	char *copied_word = NULL;
-	struct LexerStatus copy_status = lexer_copy_token_word(lexer, text,
-				(size_t) (text_end - text), &copied_word);
-	if (LEXER_STATUS(copy_status)) {
-		return copy_status;
-	}
-
 	(*token).tok_type = LXTOK_NUMBER;
-	(*token).word = copied_word;
+	(*token).lexer_number = num;
 
 	return LEXER_STATUS_GEN(LXST_OK);
 }
 
-static LexerStatus lexer_parse_var(struct lexer *lexer,
+LexerStatus lexer_parse_var(struct lexer *lexer,
 			const char *text, const char **text_end_ptr,
 			struct lexer_token *token) {
 	assert (lexer);
@@ -185,7 +200,7 @@ static LexerStatus lexer_parse_operator(struct lexer *lexer,
 
 		LXCASE_TOK_TYPE_('{', LXTOK_BCURLY_OPEN);
 		LXCASE_TOK_TYPE_('}', LXTOK_BCURLY_CLOSE);
-		LXCASE_TOK_TYPE_('(', LXTOK_BROUND_CLOSE);
+		LXCASE_TOK_TYPE_('(', LXTOK_BROUND_OPEN);
 		LXCASE_TOK_TYPE_(')', LXTOK_BROUND_CLOSE);
 		LXCASE_TOK_TYPE_('+', LXTOK_PLUS);
 		LXCASE_TOK_TYPE_('-', LXTOK_MINUS);
@@ -193,12 +208,24 @@ static LexerStatus lexer_parse_operator(struct lexer *lexer,
 		LXCASE_TOK_TYPE_('/', LXTOK_DIVIDE);
 		LXCASE_TOK_TYPE_('^', LXTOK_POW);	
 		LXCASE_TOK_TYPE_(';', LXTOK_SEMICOLON);
+		LXCASE_TOK_TYPE_(',', LXTOK_COMMA);
+		LXCASE_TOK_TYPE_('>', LXTOK_GREATER_CMP);
+		LXCASE_TOK_TYPE_('<', LXTOK_LESS_CMP);
 
 		case '=':
 			token_type = LXTOK_ASSIGN;
 			if (*(text_cur_ptr + 1) == '=') {
 				text_cur_ptr++;
 				token_type = LXTOK_EQUALS_CMP;
+			}
+			break;
+
+		case ':':
+			if (*(text_cur_ptr + 1) == '=') {
+				text_cur_ptr++;
+				token_type = LXTOK_DECL_ASSIGN;
+			} else {
+				return LEXER_STATUS_GEN(LXST_NOT_MATCHED_TOKEN);
 			}
 			break;
 
@@ -322,4 +349,15 @@ LexerStatus lexer_parse_text(struct lexer *lexer,
 	}
 
 	return LEXER_STATUS_GEN(LXST_OK);
+}
+
+struct lexer_token *lexer_get_token(struct lexer *lexer, size_t tok_idx) {
+	assert (lexer);
+
+	struct lexer_token *tok = NULL;
+	if (pvector_get(&lexer->tokens, tok_idx, (void **)&tok)) {
+		return NULL;
+	}
+
+	return tok;
 }

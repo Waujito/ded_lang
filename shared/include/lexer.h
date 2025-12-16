@@ -24,10 +24,17 @@ enum LexerTokenType {
 	LXTOK_ASSIGN,		// =
 	LXTOK_EQUALS_CMP,	// ==
 	LXTOK_SEMICOLON,	// ;
+	LXTOK_COMMA,		// ,
+	LXTOK_GREATER_CMP,	// >
+	LXTOK_LESS_CMP,		// <
+	LXTOK_DECL_ASSIGN,	// :=
 };
 
 struct lexer_token {
-	char *word;
+	union {
+		char *word;
+		int64_t lexer_number;
+	};
 
 	enum LexerTokenType tok_type;
 	size_t text_position;
@@ -62,6 +69,19 @@ LexerStatus lexer_ctor(struct lexer *lexer);
 LexerStatus lexer_dtor(struct lexer *lexer);
 
 LexerStatus lexer_parse_text(struct lexer *lexer, const char *text);
+
+
+LexerStatus lexer_clone(struct lexer *old, struct lexer *new);
+
+struct lexer_token *lexer_get_token(struct lexer *lexer, size_t tok_idx);
+
+LexerStatus lexer_copy_token_word(
+	struct lexer *lexer, const char *token_name, size_t token_size,
+	char **token_copied);
+
+LexerStatus lexer_parse_var(struct lexer *lexer,
+			const char *text, const char **text_end_ptr,
+			struct lexer_token *token);
 
 #ifdef __cplusplus
 }

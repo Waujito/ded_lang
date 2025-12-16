@@ -1,0 +1,124 @@
+#ifndef EXPRESSION_H
+#define EXPRESSION_H
+
+#include "lexer.h"
+#include "tree.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct expression_variable {
+	char *name;
+	double value;
+};
+
+struct expression {
+	struct lexer lexer_ctx;
+
+	struct tree tree;
+};
+
+int expression_ctor(struct expression *expr);
+int expression_dtor(struct expression *expr);
+
+int expression_load(struct expression *expr, const char *filename);
+int expression_store(struct expression *expr, const char *filename);
+
+
+// Update the operators array with derivative functions
+// extern const struct expression_operator expression_operators[];
+enum {
+	EXPRESSION_F_NUMBER	= 0x1,
+	EXPRESSION_F_VARIABLE	= 0x2,
+	EXPRESSION_F_OPERATOR	= 0x7,
+};
+
+enum expression_op_indexes {
+	EXPR_IDX_PLUS,	
+	EXPR_IDX_MINUS,	
+	EXPR_IDX_MULTIPLY,	
+	EXPR_IDX_DIVIDE,	
+	EXPR_IDX_POW,	
+	EXPR_IDX_ASSIGN,	
+	EXPR_IDX_EQUALS_CMP, 
+	EXPR_IDX_SEMICOLON,	
+	EXPR_IDX_DECL_ASSIGN,
+	EXPR_IDX_COMMA,
+	EXPR_IDX_GREATER_CMP,
+	EXPR_IDX_LESS_CMP
+};
+
+struct expression_operator {
+	enum expression_op_indexes idx;
+	const char *name;
+	int priority;
+};
+
+#define DECLARE_EXPERSSION_OP(_idx, opname, opstring_name, oppriority)	\
+	static const struct expression_operator expr_operator_##opname = {	\
+		.idx = _idx,							\
+		.name = opstring_name,						\
+		.priority = oppriority,						\
+	}
+
+DECLARE_EXPERSSION_OP(EXPR_IDX_SEMICOLON,	semicolon,	";",  7);
+DECLARE_EXPERSSION_OP(EXPR_IDX_ASSIGN,		assign,		"=",  6);
+DECLARE_EXPERSSION_OP(EXPR_IDX_DECL_ASSIGN,	decl_assign,	":=", 6);
+DECLARE_EXPERSSION_OP(EXPR_IDX_COMMA,		comma,		",",  5);
+DECLARE_EXPERSSION_OP(EXPR_IDX_EQUALS_CMP,	equals_cmp,	"==", 4);
+DECLARE_EXPERSSION_OP(EXPR_IDX_GREATER_CMP,	greater_cmp,	">",  4);
+DECLARE_EXPERSSION_OP(EXPR_IDX_LESS_CMP,	less_cmp,	"<",  4);
+DECLARE_EXPERSSION_OP(EXPR_IDX_PLUS,		addition,	"+",  3);
+DECLARE_EXPERSSION_OP(EXPR_IDX_MINUS,		subtraction,	"-",  3);
+DECLARE_EXPERSSION_OP(EXPR_IDX_MULTIPLY,	multiplication, "*",  2);
+DECLARE_EXPERSSION_OP(EXPR_IDX_DIVIDE,		division,	"/",  2);
+DECLARE_EXPERSSION_OP(EXPR_IDX_POW,		power,		"^",  0);
+
+
+#undef DECLARE_EXPERSSION_OP
+
+#define REGISTER_EXPRESSION_OP(idx, opname)					\
+	[idx] = &expr_operator_##opname
+
+static const struct expression_operator *const expression_operators[] = {
+	REGISTER_EXPRESSION_OP(EXPR_IDX_PLUS,		addition),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_MINUS,		subtraction),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_MULTIPLY,	multiplication),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_DIVIDE,		division),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_POW,		power),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_ASSIGN,		assign),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_EQUALS_CMP,	equals_cmp),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_SEMICOLON,	semicolon),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_DECL_ASSIGN,	decl_assign),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_COMMA,		comma),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_GREATER_CMP,	greater_cmp),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_LESS_CMP,	less_cmp),
+	NULL,
+};
+
+#undef REGISTER_EXPRESSION_OP
+
+/**
+ * implements value_deserializer
+ */
+DSError_t expression_deserializer(tree_dtype *value, const char *str, void *ctx);
+DSError_t expression_deserializer_endp(tree_dtype *value, const char *str, const char **endptr);
+
+/**
+ * implements value_serializer
+ */
+DSError_t expression_serializer(tree_dtype value, FILE *out_stream, void *ctx);
+
+struct tree_node *expr_create_number_tnode(int64_t snum);
+struct tree_node *expr_create_variable_tnode(const char *varname);
+struct tree_node *expr_create_operator_tnode(const struct expression_operator *op, 
+                                              struct tree_node *left, 
+                                              struct tree_node *right);
+struct tree_node *expr_copy_tnode(struct expression *expr, struct tree_node *original);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* EXPRESSION_H */
