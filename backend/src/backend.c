@@ -228,6 +228,12 @@ static TranslatorStatus tpush_operator(struct tree_node *tnode,
 		case EXPR_IDX_LESS_EQ_CMP:
 		case EXPR_IDX_GREATER_EQ_CMP:
 			return tpush_cmp_r01(tnode, ctx);
+		case EXPR_IDX_PRINT:
+			fprintf(ctx->asm_output, "print r0\n" "push r0\n");
+			break;
+		case EXPR_IDX_INPUT:
+			fprintf(ctx->asm_output, "input r0\n" "push r0\n");
+			break;
 		default:
 			log_error("Not implemented :(");
 			return TRANSLATOR_STATUS_GEN(BTRST_INTERNAL_FAILURE);
@@ -368,7 +374,7 @@ static TranslatorStatus translate_statement(struct tree_node *tnode,
 	ret = tpush_expression(tnode, ctx);
 	fprintf(ctx->asm_output, "pop r0\n");
 
-	return TRANSLATOR_STATUS_GEN(BTRST_OK);
+	return ret;
 }
 
 static TranslatorStatus translator_tnode(struct tree_node *tnode,

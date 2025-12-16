@@ -19,7 +19,7 @@ typedef struct {
 	};
 } tree_dtype;
 
-typedef DSError_t (*value_deserializer)(tree_dtype *value, const char *str, void *ctx);
+typedef DSError_t (*value_deserializer)(tree_dtype *value, char *str, void *ctx);
 typedef DSError_t (*value_serializer)(tree_dtype value, FILE *out_stream, void *ctx);
 
 struct tree_node {

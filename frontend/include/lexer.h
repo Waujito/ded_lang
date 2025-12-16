@@ -31,6 +31,8 @@ enum LexerTokenType {
 	LXTOK_LESS_EQ_CMP,	// <=
 	LXTOK_NOT_EQUALS_CMP,	// !=
 	LXTOK_DECL_ASSIGN,	// :=
+	LXTOK_PRINT,		// print
+	LXTOK_INPUT,		// input
 };
 
 struct lexer_token {

@@ -149,7 +149,7 @@ static int expr_parse_var(const char *text, const char **text_end_ptr) {
 	return S_OK;
 }
 
-DSError_t expression_deserializer(tree_dtype *value, const char *str, void *ctx) {
+DSError_t expression_deserializer(tree_dtype *value, char *str, void *ctx) {
 	assert (value);
 	assert (str);
 	
@@ -159,44 +159,53 @@ DSError_t expression_deserializer(tree_dtype *value, const char *str, void *ctx)
 
 	struct expression *expr = ctx;
 
-	char *endptr = NULL;
-	long long snum = strtol(str, &endptr, 10);
+	if (*str != '"') {
+		char *endptr = NULL;
+		long long snum = strtol(str, &endptr, 10);
 
-	if (*endptr == '\0' && *str != '\0') {
-		value->snum = snum;
-		value->flags = EXPRESSION_F_NUMBER;
-		return DS_OK;
-	}
-
-	const struct expression_operator *const *derop_ptr = expression_operators;
-	while (*derop_ptr != NULL) {
-		if (!strcmp(str, (*derop_ptr)->name)) {
-			value->ptr = (void *)(*derop_ptr);
-			value->flags = EXPRESSION_F_OPERATOR;
-
+		if (*endptr == '\0' && *str != '\0') {
+			value->snum = snum;
+			value->flags = EXPRESSION_F_NUMBER;
 			return DS_OK;
 		}
 
-		derop_ptr++;
-	}
+		const struct expression_operator *const *derop_ptr = expression_operators;
+		while (*derop_ptr != NULL) {
+			if (!strcmp(str, (*derop_ptr)->name)) {
+				value->ptr = (void *)(*derop_ptr);
+				value->flags = EXPRESSION_F_OPERATOR;
 
-	const char *var_endpt = NULL;
+				return DS_OK;
+			}
 
-	
-	if (expr_parse_var(str, &var_endpt) || *var_endpt != '\0') {
-		return DS_INVALID_ARG;
-	}
-	
-	struct expression_variable *var = expr_find_variable(expr, str);
-	if (!var) {
-		if (expr_push_variable(expr, str, &var)) {
-			return DS_ALLOCATION;
+			derop_ptr++;
 		}
-	}
 
-	value->varname = var->var_name;
-	value->flags = EXPRESSION_F_VARIABLE;
-	return DS_OK;
+		return DS_INVALID_ARG;
+	} else {
+		const char *var_endpt = NULL;
+
+		str += 1;
+
+		if (expr_parse_var(str, &var_endpt) || *var_endpt != '"') {
+			return DS_INVALID_ARG;
+		}
+
+		*(char *)var_endpt = '\0';
+		
+		struct expression_variable *var = expr_find_variable(expr, str);
+		if (!var) {
+			if (expr_push_variable(expr, str, &var)) {
+				return DS_ALLOCATION;
+			}
+		}
+
+		*(char *)var_endpt = '"';
+
+		value->varname = var->var_name;
+		value->flags = EXPRESSION_F_VARIABLE;
+		return DS_OK;
+	}
 }
 
 DSError_t expression_serializer(tree_dtype value, FILE *out_stream, void *ctx) {
@@ -208,7 +217,7 @@ DSError_t expression_serializer(tree_dtype value, FILE *out_stream, void *ctx) {
 	}
 
 	if ((value.flags & EXPRESSION_F_OPERATOR) == EXPRESSION_F_VARIABLE) {
-		fprintf(out_stream, "%s", value.varname);
+		fprintf(out_stream, "\"%s\"", value.varname);
 		return DS_OK;
 	}
 

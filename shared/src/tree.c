@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include <ctype.h>
 #include <stdint.h>
 #include "hash.h"
 #include "ctio.h"
@@ -96,13 +97,13 @@ DSError_t tree_serialize_node(struct tree_node *node, FILE *file,
 		return DS_OK;
 	}
 
-	if (fprintf(file, "(\"") < 0)
+	if (fprintf(file, "(") < 0)
 		return DS_ALLOCATION;
 
 	if ((ret = serializer(node->value, file, serializer_ctx)) != DS_OK)
 		return ret;
 
-	if (fprintf(file, "\" ") < 0)
+	if (fprintf(file, " ") < 0)
 		return DS_ALLOCATION;
 
 	if ((ret = tree_serialize_node(node->left, file, serializer, serializer_ctx))
@@ -182,7 +183,7 @@ DSError_t tree_deserialize_node(struct tree_node **node, char *buffer, size_t *p
 	assert (pos);
 	assert (deserializer);
 
-	while (buffer[*pos] == ' ') {
+	while (isspace(buffer[*pos])) {
 		(*pos)++;
 	}
 
@@ -198,30 +199,39 @@ DSError_t tree_deserialize_node(struct tree_node **node, char *buffer, size_t *p
 
 	(*pos)++;
 
-	if (buffer[*pos] != '"') {
-		return DS_INVALID_ARG;
+	while (isspace(buffer[*pos])) {
+		(*pos)++;
 	}
 
-	(*pos)++;
+	int look_for_quotes = 0;
+	if (buffer[*pos] == '"') {
+		look_for_quotes = 1;
+	}
 
 	char *value_start = buffer + *pos;
-	char *value_end = strchr(value_start, '"');
+	char *value_end = NULL;
+	if (look_for_quotes) {
+		value_end = strchr(value_start + 1, '"') + 1;
+	} else {
+		value_end = strchr(value_start + 1, ' ');
+	}
 	if (!value_end) {
 		return DS_INVALID_ARG;
 	}
 
+	char shadow_sym = *value_end;
 	*value_end = '\0';
 	*pos = (size_t)(value_end - buffer + 1);
 
 	*node = tnode_ctor();
 	if (!*node) {
-		*value_end = '"';
+		*value_end = shadow_sym;
 		return DS_INVALID_ARG;
 	}
 
 	DSError_t ret = DS_OK;
 	if ((ret = deserializer(&((*node)->value), value_start, deserializer_ctx)) != DS_OK) {
-		*value_end = '"';
+		*value_end = shadow_sym;
 		tnode_recursive_dtor(*node, NULL);
 		*node = NULL;
 		return ret;
@@ -229,7 +239,7 @@ DSError_t tree_deserialize_node(struct tree_node **node, char *buffer, size_t *p
 
 	if ((ret = tree_deserialize_node(&(*node)->left, buffer, pos,
 				  deserializer, deserializer_ctx)) != DS_OK) {
-		*value_end = '"';
+		*value_end = shadow_sym;
 		tnode_recursive_dtor(*node, NULL);
 		*node = NULL;
 		return ret;
@@ -237,14 +247,18 @@ DSError_t tree_deserialize_node(struct tree_node **node, char *buffer, size_t *p
 
 	if ((ret = tree_deserialize_node(&(*node)->right, buffer, pos,
 				  deserializer, deserializer_ctx)) != DS_OK) {
-		*value_end = '"';
+		*value_end = shadow_sym;
 		tnode_recursive_dtor(*node, NULL);
 		*node = NULL;
 		return ret;
 	}
 
+	while (isspace(buffer[*pos])) {
+		(*pos)++;
+	}
+
 	if (buffer[*pos] != ')') {
-		*value_end = '"';
+		*value_end = shadow_sym;
 		tnode_recursive_dtor(*node, NULL);
 		*node = NULL;
 		return ret;

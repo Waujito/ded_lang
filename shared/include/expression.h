@@ -54,7 +54,9 @@ enum expression_op_indexes {
 	EXPR_IDX_LESS_CMP,
 	EXPR_IDX_NOT_EQUALS_CMP,	
 	EXPR_IDX_GREATER_EQ_CMP,	
-	EXPR_IDX_LESS_EQ_CMP
+	EXPR_IDX_LESS_EQ_CMP,
+	EXPR_IDX_PRINT,
+	EXPR_IDX_INPUT,
 };
 
 enum expression_op_type {
@@ -78,6 +80,8 @@ struct expression_operator {
 		.type = optype,							\
 	}
 
+DECLARE_EXPERSSION_OP(EXPR_IDX_PRINT,		print,		"print",  7, EXPR_OP_T_UNARY);
+DECLARE_EXPERSSION_OP(EXPR_IDX_INPUT,		input,		"input",  7, EXPR_OP_T_UNARY);
 DECLARE_EXPERSSION_OP(EXPR_IDX_SEMICOLON,	semicolon,	";",  7, EXPR_OP_T_KEYWORD);
 DECLARE_EXPERSSION_OP(EXPR_IDX_ASSIGN,		assign,		"=",  6, EXPR_OP_T_KEYWORD);
 DECLARE_EXPERSSION_OP(EXPR_IDX_DECL_ASSIGN,	decl_assign,	":=", 6, EXPR_OP_T_KEYWORD);
@@ -116,6 +120,8 @@ static const struct expression_operator *const expression_operators[] = {
 	REGISTER_EXPRESSION_OP(EXPR_IDX_NOT_EQUALS_CMP,	nequals_cmp),
 	REGISTER_EXPRESSION_OP(EXPR_IDX_GREATER_EQ_CMP,	greater_eq_cmp),
 	REGISTER_EXPRESSION_OP(EXPR_IDX_LESS_EQ_CMP,	less_eq_cmp),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_PRINT,		print),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_INPUT,		input),
 	NULL,
 };
 
@@ -124,8 +130,7 @@ static const struct expression_operator *const expression_operators[] = {
 /**
  * implements value_deserializer
  */
-DSError_t expression_deserializer(tree_dtype *value, const char *str, void *ctx);
-DSError_t expression_deserializer_endp(tree_dtype *value, const char *str, const char **endptr);
+DSError_t expression_deserializer(tree_dtype *value, char *str, void *ctx);
 
 /**
  * implements value_serializer

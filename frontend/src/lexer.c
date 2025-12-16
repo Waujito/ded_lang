@@ -143,6 +143,29 @@ static LexerStatus lexer_parse_number(struct lexer *lexer,
 	return LEXER_STATUS_GEN(LXST_OK);
 }
 
+static LexerStatus lexer_parse_keyword(struct lexer *lexer,
+			const char *text, size_t kw_size,
+			struct lexer_token *token) {
+	assert (lexer);
+	assert (text);
+	assert (token);
+
+	enum LexerTokenType token_type = 0;
+
+	if (!strncmp(text, "print", kw_size)) {
+		token_type = LXTOK_PRINT;
+	} else if (!strncmp(text, "input", kw_size)) {
+		token_type = LXTOK_INPUT;
+	} else {
+		return LEXER_STATUS_GEN(LXST_NOT_MATCHED_TOKEN);
+	}
+
+	(*token).word = NULL;
+	(*token).tok_type = token_type;
+
+	return LEXER_STATUS_GEN(LXST_OK);
+}
+
 LexerStatus lexer_parse_var(struct lexer *lexer,
 			const char *text, const char **text_end_ptr,
 			struct lexer_token *token) {
@@ -166,6 +189,12 @@ LexerStatus lexer_parse_var(struct lexer *lexer,
 
 	*text_end_ptr = text_end;
 
+	struct LexerStatus kw_status = lexer_parse_keyword(lexer, text,
+						(size_t)(text_end - text), token);
+	if (LEXER_STATUS(kw_status) != LXST_NOT_MATCHED_TOKEN) {
+		return kw_status;
+	}
+
 	char *copied_word = NULL;
 	struct LexerStatus copy_status = lexer_copy_token_word(lexer, text,
 				(size_t) (text_end - text), &copied_word);
@@ -175,7 +204,6 @@ LexerStatus lexer_parse_var(struct lexer *lexer,
 
 	(*token).tok_type = LXTOK_VARIABLE;
 	(*token).word = copied_word;
-
 
 	return LEXER_STATUS_GEN(LXST_OK);
 }
@@ -309,14 +337,14 @@ static LexerStatus lexer_parse_token(struct lexer *lexer,
 	parser_status = lexer_parse_number(lexer, text, text_end_ptr, token);
 	if (LEXER_STATUS(parser_status) != LXST_NOT_MATCHED_TOKEN) {
 		return parser_status;
-	}
-
-	parser_status = lexer_parse_var(lexer, text, text_end_ptr, token);
-	if (LEXER_STATUS(parser_status) != LXST_NOT_MATCHED_TOKEN) {
-		return parser_status;
 	}	
 
 	parser_status = lexer_parse_operator(lexer, text, text_end_ptr, token);
+	if (LEXER_STATUS(parser_status) != LXST_NOT_MATCHED_TOKEN) {
+		return parser_status;
+	}
+
+	parser_status = lexer_parse_var(lexer, text, text_end_ptr, token);
 	if (LEXER_STATUS(parser_status) != LXST_NOT_MATCHED_TOKEN) {
 		return parser_status;
 	}

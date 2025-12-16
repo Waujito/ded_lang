@@ -70,7 +70,6 @@ static int getVariable(struct expression *expr, struct lexer *lexer,
 	struct expression_variable *var = expr_find_variable(expr, tok->word);
 	if (!var) {
 		if (expr_push_variable(expr, tok->word, &var)) {
-			eprintf("uwu\n");
 			return PARSER_RET_STATUS(S_FAIL);
 		}
 	}
@@ -80,6 +79,46 @@ static int getVariable(struct expression *expr, struct lexer *lexer,
 	*node = expr_create_variable_tnode(var->var_name);
 
 	if (!(*node)) {
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+
+	return PARSER_RET_STATUS(S_OK);
+}
+
+static int getUnaryOp(struct expression *expr, struct lexer *lexer,
+			 size_t *lexer_idx, struct tree_node **node) {
+	assert (expr);
+	assert (lexer);
+	assert (lexer_idx);
+	assert (node);
+
+	struct lexer_token *tok = NULL;
+	if (!(tok = lexer_get_token(lexer, *lexer_idx))) {
+		return S_CONTINUE;
+	}
+
+	size_t op_idx = 0;
+	if (tok->tok_type == LXTOK_PRINT) {
+		op_idx = EXPR_IDX_PRINT;
+	} else if (tok->tok_type == LXTOK_INPUT) {
+		op_idx = EXPR_IDX_INPUT;
+	} else {
+		return S_CONTINUE;
+	}
+
+	(*lexer_idx)++;
+
+	struct tree_node *lnode = NULL;
+
+	int ret = 0;
+	if ((ret = CALL_PARSER(getPrimaryExpression, expr, lexer, lexer_idx, &lnode))) {
+		return PARSER_RET_STATUS(ret);
+	}
+
+	*node = expr_create_operator_tnode(expression_operators[op_idx], lnode, NULL);
+
+	if (!(*node)) {
+		tnode_recursive_dtor(lnode, NULL);
 		return PARSER_RET_STATUS(S_FAIL);
 	}
 
@@ -96,6 +135,10 @@ static int getC(struct expression *expr, struct lexer *lexer,
 	int ret = 0;
 
 	if ((ret = CALL_PARSER(getNumber, expr, lexer, lexer_idx, node)) != S_CONTINUE) {
+		return PARSER_RET_STATUS(ret);
+	}
+
+	if ((ret = CALL_PARSER(getUnaryOp, expr, lexer, lexer_idx, node)) != S_CONTINUE) {
 		return PARSER_RET_STATUS(ret);
 	}
 
@@ -129,6 +172,7 @@ static int getPrimaryExpression(struct expression *expr, struct lexer *lexer,
 			tok->tok_type == LXTOK_BROUND_CLOSE)) {
 			return PARSER_RET_STATUS(S_FAIL);
 		}
+		(*lexer_idx)++;
 
 		return PARSER_RET_STATUS(S_OK);
 	}
