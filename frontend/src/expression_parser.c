@@ -279,9 +279,12 @@ static int getComprasion(struct lexer *lexer,
 
 	struct lexer_token *tok = NULL;
 	while ((tok = lexer_get_token(lexer, *lexer_idx)) &&
-		(tok->tok_type == LXTOK_EQUALS_CMP ||
-		 tok->tok_type == LXTOK_GREATER_CMP ||
-		 tok->tok_type == LXTOK_LESS_CMP)) {	
+		(tok->tok_type == LXTOK_EQUALS_CMP	||
+		 tok->tok_type == LXTOK_GREATER_CMP	||
+		 tok->tok_type == LXTOK_LESS_CMP	||
+		 tok->tok_type == LXTOK_NOT_EQUALS_CMP	||
+		 tok->tok_type == LXTOK_GREATER_EQ_CMP	||
+		 tok->tok_type == LXTOK_LESS_EQ_CMP)) {	
 
 		(*lexer_idx)++;
 
@@ -292,16 +295,33 @@ static int getComprasion(struct lexer *lexer,
 		}
 
 		struct tree_node *mnode = NULL;
-		if (tok->tok_type == LXTOK_EQUALS_CMP) {
-			mnode = expr_create_operator_tnode(
-				expression_operators[EXPR_IDX_EQUALS_CMP], lnode, rnode);
-		} else if (tok->tok_type == LXTOK_GREATER_CMP) {
-			mnode = expr_create_operator_tnode(
-				expression_operators[EXPR_IDX_GREATER_CMP], lnode, rnode);
-		} else {
-			mnode = expr_create_operator_tnode(
-				expression_operators[EXPR_IDX_LESS_CMP], lnode, rnode);
+		size_t op_idx = 0;
+		switch ((int)tok->tok_type) {
+			case LXTOK_EQUALS_CMP:
+				op_idx = EXPR_IDX_EQUALS_CMP;
+				break;
+			case LXTOK_GREATER_CMP:
+				op_idx = EXPR_IDX_GREATER_CMP;
+				break;
+			case LXTOK_LESS_CMP:
+				op_idx = EXPR_IDX_LESS_CMP;
+				break;
+			case LXTOK_NOT_EQUALS_CMP:
+				op_idx = EXPR_IDX_NOT_EQUALS_CMP;
+				break;
+			case LXTOK_GREATER_EQ_CMP:
+				op_idx = EXPR_IDX_GREATER_EQ_CMP;
+				break;
+			case LXTOK_LESS_EQ_CMP:
+				op_idx = EXPR_IDX_LESS_EQ_CMP;
+				break;
+			default:
+				assert (0 && "unreachable");
+				break;
 		}
+
+		mnode = expr_create_operator_tnode(
+				expression_operators[op_idx], lnode, rnode);
 		
 
 		if (!mnode) {

@@ -8,12 +8,15 @@ int main(int argc, const char *argv[]) {
 		log_error("Frontend command syntax: %s [filename]+", argv[0]);
 	}
 
+	int err = 0;
+
 	for (int i = 1; i < argc; i++) {
 		const char *in_file = argv[i];
 		struct expression expr = {0};
 
 		if (expression_parse_file(in_file, &expr)) {
 			log_error("Cannot parse file %s", in_file);
+			err = 1;
 			continue;
 		}
 
@@ -22,6 +25,7 @@ int main(int argc, const char *argv[]) {
 		if (!out_filename) {
 			expression_dtor(&expr);
 			log_error("allocation error");
+			err = 1;
 			continue;
 		}
 		memcpy(out_filename, in_file, in_filename_len);
@@ -31,11 +35,17 @@ int main(int argc, const char *argv[]) {
 			expression_dtor(&expr);
 			free(out_filename);
 			log_error("Tree store error");
+			err = 1;
 			continue;
 		}
 
 		expression_dtor(&expr);
 		free(out_filename);
+	}
+
+	if (err) {
+		log_error("Errors occured during compilation.\n");
+		return 1;
 	}
 
 	return 0;

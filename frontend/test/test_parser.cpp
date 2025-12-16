@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "expression.h"
+#include "expression_parser.h"
 
 TEST(Parser, ParserDumps) {
 	const char *rawText = ";;;;;2+2;1+21;asdf;a:=b;a=b;a-b;a=a+b;";//"2+2^5^3*2/1+2-2;2;2;2;2;";

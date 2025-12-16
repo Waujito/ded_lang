@@ -209,8 +209,29 @@ static LexerStatus lexer_parse_operator(struct lexer *lexer,
 		LXCASE_TOK_TYPE_('^', LXTOK_POW);	
 		LXCASE_TOK_TYPE_(';', LXTOK_SEMICOLON);
 		LXCASE_TOK_TYPE_(',', LXTOK_COMMA);
-		LXCASE_TOK_TYPE_('>', LXTOK_GREATER_CMP);
-		LXCASE_TOK_TYPE_('<', LXTOK_LESS_CMP);
+
+		case '<':
+			token_type = LXTOK_LESS_CMP;
+			if (*(text_cur_ptr + 1) == '=') {
+				text_cur_ptr++;
+				token_type = LXTOK_LESS_EQ_CMP;
+			}
+			break;
+		case '>':
+			token_type = LXTOK_GREATER_CMP;
+			if (*(text_cur_ptr + 1) == '=') {
+				text_cur_ptr++;
+				token_type = LXTOK_GREATER_EQ_CMP;
+			}
+			break;
+		case '!':
+			if (*(text_cur_ptr + 1) == '=') {
+				text_cur_ptr++;
+				token_type = LXTOK_NOT_EQUALS_CMP;
+			} else {
+				return LEXER_STATUS_GEN(LXST_NOT_MATCHED_TOKEN);
+			}
+			break;
 
 		case '=':
 			token_type = LXTOK_ASSIGN;

@@ -111,7 +111,16 @@ DSError_t expression_serializer(tree_dtype value, FILE *out_stream, void *ctx) {
 	}
 
 	if ((value.flags & EXPRESSION_F_OPERATOR) == EXPRESSION_F_OPERATOR) {
-		fprintf(out_stream, "%s", ((struct expression_operator *)value.ptr)->name);
+		struct expression_operator *op = value.ptr;
+		if (!ctx && op->name && (op->name[0] == '<' || op->name[0] == '>')) {
+			if (op->name[0] == '<') {
+				fprintf(out_stream, "&lt;");
+			} else {
+				fprintf(out_stream, "&gt;");
+			}
+		} else {
+			fprintf(out_stream, "%s", op->name);
+		}
 		return DS_OK;
 	}
 

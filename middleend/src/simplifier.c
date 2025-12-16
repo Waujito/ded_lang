@@ -26,16 +26,6 @@ static int64_t fastpow(int64_t num, int64_t deg) {
 	return nnum;
 }
 
-static const double deps = 1e-9;
-
-#define EXPR_TNODE_IS_NUMBER(node) ((node->value.flags & EXPRESSION_F_OPERATOR) \
-						== EXPRESSION_F_NUMBER)
-#define EXPR_TNODE_IS_VARIABLE(node) ((node->value.flags & EXPRESSION_F_OPERATOR) \
-						== EXPRESSION_F_VARIABLE)
-#define EXPR_TNODE_IS_OPERATOR(node) ((node->value.flags & EXPRESSION_F_OPERATOR) \
-						== EXPRESSION_F_OPERATOR)
-#define EXPR_TNODE_IS_CONSTANT(node) (node->value.flags & EXPRESSION_F_CONSTANT)
-
 struct tree_node *tnode_simplify(struct expression *expr, struct tree_node *node) {
 
 	if (!node) {
@@ -69,7 +59,7 @@ struct tree_node *tnode_simplify(struct expression *expr, struct tree_node *node
 		EXPR_TNODE_IS_NUMBER(lnode) && EXPR_TNODE_IS_NUMBER(rnode)) {
 		struct tree_node *nnode = NULL;
 
-		switch (op->idx) {
+		switch ((int)op->idx) {
 			case EXPR_IDX_MULTIPLY:
 				nnode = expr_create_number_tnode(
 					lnode->value.snum * rnode->value.snum);
@@ -84,7 +74,7 @@ struct tree_node *tnode_simplify(struct expression *expr, struct tree_node *node
 				break;
 			case EXPR_IDX_DIVIDE:
 				if (rnode->value.snum == 0) {
-					eprintf("WARNING: Possible division by zero.");
+					eprintf("WARNING: Possible division by zero.\n");
 					break;
 				}
 				nnode = expr_create_number_tnode(
@@ -93,6 +83,30 @@ struct tree_node *tnode_simplify(struct expression *expr, struct tree_node *node
 			case EXPR_IDX_POW:
 				nnode = expr_create_number_tnode(fastpow(
 					lnode->value.snum, rnode->value.snum));
+				break;
+			case EXPR_IDX_LESS_CMP:
+				nnode = expr_create_number_tnode(
+					lnode->value.snum < rnode->value.snum);
+				break;
+			case EXPR_IDX_GREATER_CMP:
+				nnode = expr_create_number_tnode(
+					lnode->value.snum > rnode->value.snum);
+				break;
+			case EXPR_IDX_EQUALS_CMP:
+				nnode = expr_create_number_tnode(
+					lnode->value.snum == rnode->value.snum);
+				break;
+			case EXPR_IDX_LESS_EQ_CMP:
+				nnode = expr_create_number_tnode(
+					lnode->value.snum <= rnode->value.snum);
+				break;
+			case EXPR_IDX_GREATER_EQ_CMP:
+				nnode = expr_create_number_tnode(
+					lnode->value.snum >= rnode->value.snum);
+				break;
+			case EXPR_IDX_NOT_EQUALS_CMP:
+				nnode = expr_create_number_tnode(
+					lnode->value.snum != rnode->value.snum);
 				break;
 			default:
 				break;

@@ -27,6 +27,9 @@ enum LexerTokenType {
 	LXTOK_COMMA,		// ,
 	LXTOK_GREATER_CMP,	// >
 	LXTOK_LESS_CMP,		// <
+	LXTOK_GREATER_EQ_CMP,	// >=
+	LXTOK_LESS_EQ_CMP,	// <=
+	LXTOK_NOT_EQUALS_CMP,	// !=
 	LXTOK_DECL_ASSIGN,	// :=
 };
 
