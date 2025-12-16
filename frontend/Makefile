@@ -22,7 +22,7 @@ TESTSRC := test/test_lexer.cpp test/test_parser.cpp
 TESTOBJ := $(TESTSRC:%.cpp=$(BUILD_DIR)/%.cpp.o)
 TEST_LIB_APP := $(BUILD_DIR)/test_frontend
 
-LIBSRC := src/expression_parser.c
+LIBSRC := src/expression_parser.c src/lexer.c
 LIBOBJ := $(LIBSRC:%.c=$(BUILD_DIR)/%.c.o)
 FRONTEND_LIB := $(BUILD_DIR)/frontend_lib.a
 

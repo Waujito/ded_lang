@@ -2,9 +2,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 #include "tree.h"
 
 #include "expression.h"
+
+static void pv_free_variable(void *el) {
+	struct expression_variable *var = el;
+	free(var->var_name);
+	var->var_name = NULL;
+}
 
 int expression_ctor(struct expression *expr) {
 	assert (expr);
@@ -13,8 +20,14 @@ int expression_ctor(struct expression *expr) {
 		return S_FAIL;
 	}
 
-	if (LEXER_STATUS(lexer_ctor(&expr->lexer_ctx))) {
+	if (pvector_init(&expr->variables, sizeof(struct expression_variable))) {
 		tree_dtor(&expr->tree);
+		return S_FAIL;
+	}
+
+	if (pvector_set_element_destructor(&expr->variables, pv_free_variable)) {
+		tree_dtor(&expr->tree);
+		pvector_destroy(&expr->variables);
 		return S_FAIL;
 	}
 
@@ -25,7 +38,68 @@ int expression_dtor(struct expression *expr) {
 	assert (expr);
 
 	tree_dtor(&expr->tree);
-	lexer_dtor(&expr->lexer_ctx);
+	pvector_destroy(&expr->variables);
+
+	return S_OK;
+}
+
+struct expression_variable *expr_find_variable(struct expression *expr,
+						      const char *varname) {
+	assert (expr);
+	assert (varname);
+
+	for (size_t i = 0; i < expr->variables.len; i++) {
+      		struct expression_variable *var = NULL;
+		if (pvector_get(&expr->variables, i, (void **)&var)) {
+			log_error("pvector_get error (normally unreachable)");
+			return NULL;
+		}
+
+		if (!strcmp(varname, var->var_name)) {
+			return var;
+		}
+	}
+
+	return NULL;
+}
+
+int expr_push_variable(struct expression *expr, const char *varname,
+			       struct expression_variable **nvar) {
+	assert (expr);
+	assert (varname);
+
+	if (expr_find_variable(expr, varname)) {
+		log_error("Already declared variable: %s", varname);
+		return S_FAIL;
+	}
+
+	size_t var_idx = expr->variables.len;
+
+	struct expression_variable var = {
+		.var_name = strdup(varname),
+		.var_pointer = var_idx,
+	};
+
+	if (!var.var_name) {
+		log_error("strdup: Allocation error");
+		return S_FAIL;
+	}
+
+	if (pvector_push_back(&expr->variables, &var)) {
+		log_error("pvector_push_back: Allocation error");
+		free(var.var_name);
+		return S_FAIL;
+	}
+
+	struct expression_variable *rvar = NULL;
+	if (pvector_get(&expr->variables, var_idx, (void **)&rvar)) {
+		log_error("pvector_get error (normally unreachable)");
+		return S_FAIL;
+	}
+
+	if (nvar) {
+		*nvar = rvar;
+	}
 
 	return S_OK;
 }
@@ -34,7 +108,7 @@ int expression_load(struct expression *expr, const char *filename) {
 	assert (expr);
 	assert (filename);
 
-	tree_dtor(&expr->tree);
+	expression_ctor(expr);
 
 	if (tree_load(&expr->tree, filename, expression_deserializer, expr)) {
 		return S_FAIL;
@@ -51,6 +125,27 @@ int expression_store(struct expression *expr, const char *filename) {
 		return S_FAIL;
 	}
 
+	return S_OK;
+}
+
+static int expr_parse_var(const char *text, const char **text_end_ptr) {
+	assert (text);
+	assert (text_end_ptr);
+
+	const char *text_end = text;
+
+	if (!isalpha(*text)) {
+		return S_FAIL;
+	}
+
+	text_end++;
+
+	while (isalpha(*text_end) || isdigit(*text_end)) {
+		text_end++;
+	}
+
+	*text_end_ptr = text_end;
+	
 	return S_OK;
 }
 
@@ -86,15 +181,22 @@ DSError_t expression_deserializer(tree_dtype *value, const char *str, void *ctx)
 	}
 
 	const char *var_endpt = NULL;
-	struct lexer_token token = {0};
-	LexerStatus parser_status = lexer_parse_var(&expr->lexer_ctx, str, &var_endpt, &token);
-	if (LEXER_STATUS(parser_status) == LXST_OK && *var_endpt == '\0') {
-		value->varname = token.word;
-		value->flags = EXPRESSION_F_VARIABLE;
-		return DS_OK;
+
+	
+	if (expr_parse_var(str, &var_endpt) || *var_endpt != '\0') {
+		return DS_INVALID_ARG;
+	}
+	
+	struct expression_variable *var = expr_find_variable(expr, str);
+	if (!var) {
+		if (expr_push_variable(expr, str, &var)) {
+			return DS_ALLOCATION;
+		}
 	}
 
-	return DS_INVALID_ARG;
+	value->varname = var->var_name;
+	value->flags = EXPRESSION_F_VARIABLE;
+	return DS_OK;
 }
 
 DSError_t expression_serializer(tree_dtype value, FILE *out_stream, void *ctx) {

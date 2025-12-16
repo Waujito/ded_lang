@@ -26,7 +26,7 @@ struct translation_context {
 
 
 
-struct variable *find_variable(struct translation_context *ctx, const char *varname) {
+static struct variable *find_variable(struct translation_context *ctx, const char *varname) {
 	assert (ctx);
 	assert (varname);
 
@@ -45,7 +45,7 @@ struct variable *find_variable(struct translation_context *ctx, const char *varn
 	return NULL;
 }
 
-TranslatorStatus push_variable(struct translation_context *ctx, const char *varname,
+static TranslatorStatus push_variable(struct translation_context *ctx, const char *varname,
 			       struct variable **nvar) {
 	assert (ctx);
 	assert (varname);

@@ -1,7 +1,7 @@
 #ifndef EXPRESSION_H
 #define EXPRESSION_H
 
-#include "lexer.h"
+#include "pvector.h"
 #include "tree.h"
 
 #ifdef __cplusplus
@@ -9,18 +9,23 @@ extern "C" {
 #endif
 
 struct expression_variable {
-	char *name;
-	double value;
+	char *var_name;
+	size_t var_pointer;
 };
 
 struct expression {
-	struct lexer lexer_ctx;
-
 	struct tree tree;
+	// vector of expression_variable
+	struct pvector variables;
 };
 
 int expression_ctor(struct expression *expr);
 int expression_dtor(struct expression *expr);
+
+struct expression_variable *expr_find_variable(struct expression *expr,
+						      const char *varname);
+int expr_push_variable(struct expression *expr, const char *varname,
+			       struct expression_variable **nvar);
 
 int expression_load(struct expression *expr, const char *filename);
 int expression_store(struct expression *expr, const char *filename);

@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include "types.h"
 #include "expression.h"
 #include "expression_parser.h"

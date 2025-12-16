@@ -147,10 +147,5 @@ int expression_simplify(struct expression *expr, struct expression *simplified) 
 
 	simplified->tree.root = simplified_root;
 
-	if (LEXER_STATUS(lexer_clone(&expr->lexer_ctx, &simplified->lexer_ctx))) {
-		tnode_recursive_dtor(simplified_root, NULL);
-		return S_FAIL;
-	}
-
 	return S_OK;
 }

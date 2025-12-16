@@ -19,7 +19,7 @@ TESTSRC := test/test_dummy.cpp
 TESTOBJ := $(TESTSRC:%.cpp=$(BUILD_DIR)/%.cpp.o)
 TEST_LIB_APP := $(BUILD_DIR)/test_vlvm_shared
 
-LIBSRC := src/expression.c src/tree.c src/lexer.c
+LIBSRC := src/expression.c src/tree.c
 LIBOBJ := $(LIBSRC:%.c=$(BUILD_DIR)/%.c.o)
 VLVM_SHARED_LIB := $(BUILD_DIR)/vlvm_shared_lib.a
 
