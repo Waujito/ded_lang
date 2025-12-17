@@ -57,6 +57,8 @@ enum expression_op_indexes {
 	EXPR_IDX_LESS_EQ_CMP,
 	EXPR_IDX_PRINT,
 	EXPR_IDX_INPUT,
+	EXPR_IDX_IF,
+	EXPR_IDX_ELSE,
 };
 
 enum expression_op_type {
@@ -83,6 +85,8 @@ struct expression_operator {
 
 DECLARE_EXPERSSION_OP(EXPR_IDX_PRINT,		print,		"print",  7, EXPR_OP_T_UNARY);
 DECLARE_EXPERSSION_OP(EXPR_IDX_INPUT,		input,		"input",  7, EXPR_OP_T_NOARG);
+DECLARE_EXPERSSION_OP(EXPR_IDX_IF,		if,		"if",     7, EXPR_OP_T_KEYWORD);
+DECLARE_EXPERSSION_OP(EXPR_IDX_ELSE,		else,		"else",   7, EXPR_OP_T_KEYWORD);
 DECLARE_EXPERSSION_OP(EXPR_IDX_SEMICOLON,	semicolon,	";",  7, EXPR_OP_T_KEYWORD);
 DECLARE_EXPERSSION_OP(EXPR_IDX_ASSIGN,		assign,		"=",  6, EXPR_OP_T_KEYWORD);
 DECLARE_EXPERSSION_OP(EXPR_IDX_DECL_ASSIGN,	decl_assign,	":=", 6, EXPR_OP_T_KEYWORD);
@@ -123,6 +127,8 @@ static const struct expression_operator *const expression_operators[] = {
 	REGISTER_EXPRESSION_OP(EXPR_IDX_LESS_EQ_CMP,	less_eq_cmp),
 	REGISTER_EXPRESSION_OP(EXPR_IDX_PRINT,		print),
 	REGISTER_EXPRESSION_OP(EXPR_IDX_INPUT,		input),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_IF,		if),
+	REGISTER_EXPRESSION_OP(EXPR_IDX_ELSE,		else),
 	NULL,
 };
 

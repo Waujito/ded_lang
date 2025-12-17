@@ -24,7 +24,8 @@ struct translation_context {
 	size_t jmp_idx;
 };
 
-
+static TranslatorStatus translate_statement(struct tree_node *tnode,
+				     struct translation_context *ctx);
 
 static struct variable *find_variable(struct translation_context *ctx, const char *varname) {
 	assert (ctx);
@@ -323,6 +324,55 @@ static TranslatorStatus translate_declaration(struct tree_node *tnode,
 	return translate_assignment(tnode, ctx);
 }
 
+static TranslatorStatus translate_conditional(struct tree_node *tnode,
+				     struct translation_context *ctx) {
+	assert (ctx);
+	assert (tnode);
+	assert (EXPR_TNODE_IS_OPERATOR(tnode));
+
+	struct expression_operator *op = tnode->value.ptr;
+	assert (op->idx == EXPR_IDX_IF);
+
+	if (!tnode->left) {
+		return TRANSLATOR_STATUS_GEN(BTRST_TREE_INVALID);
+	}
+
+	TranslatorStatus ret = tpush_expression(tnode->left, ctx); 
+	if (TRANSLATOR_STATUS(ret)) {
+		return ret;
+	};
+
+	struct tree_node *if_positive_node = NULL;
+	struct tree_node *if_negative_node = NULL;
+
+	if (tnode->right && EXPR_TNODE_IS_OPERATOR(tnode->right) && 
+		((struct expression_operator *)tnode->right->value.ptr)->idx == EXPR_IDX_ELSE) {
+
+		if_positive_node = tnode->right->left;
+		if_negative_node = tnode->right->right;
+	} else {
+		if_positive_node = tnode->right;
+	}
+
+	fprintf(ctx->asm_output, "pop r0\n" "ldc r1 $0\n" "cmp r0 r1\n");
+	size_t out_jmp_idx = ctx->jmp_idx++;
+	size_t else_jmp_idx = if_negative_node ? ctx->jmp_idx++ : out_jmp_idx;
+
+	fprintf(ctx->asm_output, "jmp.eq ._jmp_tps__%zu\n", else_jmp_idx);
+
+	translate_statement(if_positive_node, ctx);
+	
+	if (if_negative_node) {
+		fprintf(ctx->asm_output, "jmp ._jmp_tps__%zu\n", out_jmp_idx);
+		fprintf(ctx->asm_output, "._jmp_tps__%zu:\n", else_jmp_idx);
+		translate_statement(if_negative_node, ctx);
+	}
+
+	fprintf(ctx->asm_output, "._jmp_tps__%zu:\n", out_jmp_idx);
+
+	return TRANSLATOR_STATUS_GEN(BTRST_OK);
+}
+
 
 static TranslatorStatus translate_statement(struct tree_node *tnode,
 				     struct translation_context *ctx) {
@@ -370,6 +420,10 @@ static TranslatorStatus translate_statement(struct tree_node *tnode,
 
 	if (op->idx == EXPR_IDX_ASSIGN) {
 		return translate_assignment(tnode, ctx);
+	}
+
+	if (op->idx == EXPR_IDX_IF) {
+		return translate_conditional(tnode, ctx);
 	}
 	
 	// Dummy expression

@@ -33,6 +33,8 @@ enum LexerTokenType {
 	LXTOK_DECL_ASSIGN,	// :=
 	LXTOK_PRINT,		// print
 	LXTOK_INPUT,		// input
+	LXTOK_IF,		// input
+	LXTOK_ELSE,		// input
 };
 
 static struct lexer_keyword_tok {
@@ -42,8 +44,10 @@ static struct lexer_keyword_tok {
 #define LXKW_DEFINE(tok_name_, tok_type_)		\
 	{.tok_name = tok_name_, .tok_type = tok_type_}
 
-	LXKW_DEFINE("input", LXTOK_INPUT),
-	LXKW_DEFINE("print", LXTOK_PRINT),
+	LXKW_DEFINE("input",	LXTOK_INPUT	),
+	LXKW_DEFINE("print",	LXTOK_PRINT	),
+	LXKW_DEFINE("if",	LXTOK_IF	),
+	LXKW_DEFINE("else",	LXTOK_ELSE	),
 	NULL
 
 #undef LXKW_DEFINE
