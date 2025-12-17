@@ -35,6 +35,20 @@ enum LexerTokenType {
 	LXTOK_INPUT,		// input
 };
 
+static struct lexer_keyword_tok {
+	const char *tok_name;
+	enum LexerTokenType tok_type;
+} lexer_keyword_table[] = {
+#define LXKW_DEFINE(tok_name_, tok_type_)		\
+	{.tok_name = tok_name_, .tok_type = tok_type_}
+
+	LXKW_DEFINE("input", LXTOK_INPUT),
+	LXKW_DEFINE("print", LXTOK_PRINT),
+	NULL
+
+#undef LXKW_DEFINE
+};
+
 struct lexer_token {
 	union {
 		char *word;

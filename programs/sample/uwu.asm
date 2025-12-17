@@ -33,10 +33,6 @@ pop r0
 print r0
 push r0
 pop r0
-ldc r0 $1
-ldm r0 r0
-push r0
-pop r0
 input r0
 push r0
 pop r0

@@ -203,6 +203,8 @@ static TranslatorStatus tpush_operator(struct tree_node *tnode,
 		// Inversion because of stack
 		fprintf(ctx->asm_output, "pop r1\n"
 	  				 "pop r0\n");
+	} else if (op->type == EXPR_OP_T_NOARG) {
+		// Nothing here :) !!
 	} else {
 		log_error("Attempt to evaluate non-evaluateable");
 		return TRANSLATOR_STATUS_GEN(BTRST_TREE_INVALID);

@@ -1,1 +1,1 @@
-(; (; (; (; (; (:= ("a" nil nil) (1 nil nil)) (:= ("b" nil nil) (< ("a" nil nil) (1 nil nil)))) (print ("a" nil nil) nil)) (print ("b" nil nil) nil)) (= ("b" nil nil) (input ("b" nil nil) nil))) (print ("b" nil nil) nil))
+(; (; (; (; (; (:= ("a" nil nil) (1 nil nil)) (:= ("b" nil nil) (< ("a" nil nil) (1 nil nil)))) (print ("a" nil nil) nil)) (print ("b" nil nil) nil)) (= ("b" nil nil) (input nil nil))) (print ("b" nil nil) nil))

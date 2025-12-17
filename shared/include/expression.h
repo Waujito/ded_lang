@@ -61,6 +61,7 @@ enum expression_op_indexes {
 
 enum expression_op_type {
 	EXPR_OP_T_UNARY,
+	EXPR_OP_T_NOARG,
 	EXPR_OP_T_BINARY,
 	EXPR_OP_T_KEYWORD,
 };
@@ -81,7 +82,7 @@ struct expression_operator {
 	}
 
 DECLARE_EXPERSSION_OP(EXPR_IDX_PRINT,		print,		"print",  7, EXPR_OP_T_UNARY);
-DECLARE_EXPERSSION_OP(EXPR_IDX_INPUT,		input,		"input",  7, EXPR_OP_T_UNARY);
+DECLARE_EXPERSSION_OP(EXPR_IDX_INPUT,		input,		"input",  7, EXPR_OP_T_NOARG);
 DECLARE_EXPERSSION_OP(EXPR_IDX_SEMICOLON,	semicolon,	";",  7, EXPR_OP_T_KEYWORD);
 DECLARE_EXPERSSION_OP(EXPR_IDX_ASSIGN,		assign,		"=",  6, EXPR_OP_T_KEYWORD);
 DECLARE_EXPERSSION_OP(EXPR_IDX_DECL_ASSIGN,	decl_assign,	":=", 6, EXPR_OP_T_KEYWORD);

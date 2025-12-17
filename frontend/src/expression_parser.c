@@ -27,6 +27,8 @@
 
 static int getPrimaryExpression(struct expression *expr, struct lexer *lexer,
 				size_t *lexer_idx, struct tree_node **node);
+static int getArgumentsExpression(struct expression *expr, struct lexer *lexer,
+			 size_t *lexer_idx, struct tree_node **node);
 static int getExpression(struct expression *expr, struct lexer *lexer,
 			 size_t *lexer_idx, struct tree_node **node);
 
@@ -85,7 +87,7 @@ static int getVariable(struct expression *expr, struct lexer *lexer,
 	return PARSER_RET_STATUS(S_OK);
 }
 
-static int getUnaryOp(struct expression *expr, struct lexer *lexer,
+static int getFunKeywordOp(struct expression *expr, struct lexer *lexer,
 			 size_t *lexer_idx, struct tree_node **node) {
 	assert (expr);
 	assert (lexer);
@@ -111,7 +113,7 @@ static int getUnaryOp(struct expression *expr, struct lexer *lexer,
 	struct tree_node *lnode = NULL;
 
 	int ret = 0;
-	if ((ret = CALL_PARSER(getPrimaryExpression, expr, lexer, lexer_idx, &lnode))) {
+	if ((ret = CALL_PARSER(getArgumentsExpression, expr, lexer, lexer_idx, &lnode))) {
 		return PARSER_RET_STATUS(ret);
 	}
 
@@ -138,7 +140,7 @@ static int getC(struct expression *expr, struct lexer *lexer,
 		return PARSER_RET_STATUS(ret);
 	}
 
-	if ((ret = CALL_PARSER(getUnaryOp, expr, lexer, lexer_idx, node)) != S_CONTINUE) {
+	if ((ret = CALL_PARSER(getFunKeywordOp, expr, lexer, lexer_idx, node)) != S_CONTINUE) {
 		return PARSER_RET_STATUS(ret);
 	}
 
@@ -148,6 +150,37 @@ static int getC(struct expression *expr, struct lexer *lexer,
 
 	eprintf("Expression item is not detected\n");
 
+	return PARSER_RET_STATUS(S_FAIL);
+}
+
+static int getArgumentsExpression(struct expression *expr, struct lexer *lexer,
+			 size_t *lexer_idx, struct tree_node **node) {
+	assert (expr);
+	assert (lexer);
+	assert (lexer_idx);
+	assert (node);
+
+	int ret = 0;
+
+	struct lexer_token *tok = NULL;
+	if ((tok = lexer_get_token(lexer, *lexer_idx)) && tok->tok_type == LXTOK_BROUND_OPEN) {
+		(*lexer_idx)++;
+
+		if (!((tok = lexer_get_token(lexer, *lexer_idx)) &&
+			tok->tok_type == LXTOK_BROUND_CLOSE)) {
+			if ((ret = CALL_PARSER(getExpression, expr, lexer, lexer_idx, node))) {
+				return PARSER_RET_STATUS(ret);
+			}
+		}
+
+		if (!((tok = lexer_get_token(lexer, *lexer_idx)) &&
+			tok->tok_type == LXTOK_BROUND_CLOSE)) {
+			return PARSER_RET_STATUS(S_FAIL);
+		}
+		(*lexer_idx)++;
+
+		return PARSER_RET_STATUS(S_OK);
+	}
 	return PARSER_RET_STATUS(S_FAIL);
 }
 

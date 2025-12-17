@@ -150,6 +150,30 @@ static LexerStatus lexer_parse_keyword(struct lexer *lexer,
 	assert (text);
 	assert (token);
 
+	struct lexer_keyword_tok *kw = lexer_keyword_table;
+	while (kw->tok_name) {
+		if (strncmp(text, kw->tok_name, kw_size)) {
+			kw++;
+			continue;
+		}
+
+		(*token).word = NULL;
+		(*token).tok_type = kw->tok_type;
+
+		return LEXER_STATUS_GEN(LXST_OK);
+	}
+
+	return LEXER_STATUS_GEN(LXST_NOT_MATCHED_TOKEN);
+}
+
+/*
+static LexerStatus lexer_parse_keyword(struct lexer *lexer,
+			const char *text, size_t kw_size,
+			struct lexer_token *token) {
+	assert (lexer);
+	assert (text);
+	assert (token);
+
 	enum LexerTokenType token_type = 0;
 
 	if (!strncmp(text, "print", kw_size)) {
@@ -165,6 +189,7 @@ static LexerStatus lexer_parse_keyword(struct lexer *lexer,
 
 	return LEXER_STATUS_GEN(LXST_OK);
 }
+*/
 
 LexerStatus lexer_parse_var(struct lexer *lexer,
 			const char *text, const char **text_end_ptr,
