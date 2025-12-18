@@ -4,6 +4,9 @@
 #include "expression.h"
 #include "backend.h"
 
+
+// TODO: Generate asm with comments
+
 struct variable {
 	const char *var_name;
 	size_t var_pointer;

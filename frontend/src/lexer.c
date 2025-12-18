@@ -4,6 +4,7 @@
 
 #include "lexer.h"
 
+// TODO: FIX REALLOCATION!
 #define LEXER_INITIAL_BUFLEN (12800)
 
 #define LEXER_STATUS_GEN(status_) \

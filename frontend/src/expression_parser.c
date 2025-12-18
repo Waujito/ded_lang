@@ -9,6 +9,8 @@
 #include <stdbool.h>
 #include <ctype.h>
 
+// TODO: Error reporting system
+
 #define S_CONTINUE (-2)
 #define S_EMPTY_EXPRESSION (-3)
 
@@ -496,6 +498,7 @@ static int getComprasion(struct expression *expr, struct lexer *lexer,
 		 tok->tok_type == LXTOK_NOT_EQUALS_CMP	||
 		 tok->tok_type == LXTOK_GREATER_EQ_CMP	||
 		 tok->tok_type == LXTOK_LESS_EQ_CMP	||
+		// TODO: MOVE OUT OF COMPRASION
 		 tok->tok_type == LXTOK_SHL		||
 		 tok->tok_type == LXTOK_SHR		||
 		 tok->tok_type == LXTOK_BITAND		||
