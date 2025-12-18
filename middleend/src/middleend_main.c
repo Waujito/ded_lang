@@ -34,6 +34,7 @@ int main(int argc, char *argv[]) {
 
 	printf("Read tree from '%s', simplified it, and wrote to '%s'\n", input_file, output_file);
 
+	/*
 	FILE *dump_file = fopen("middleend_dump.htm", "w");
 	tree_dump(&input_expr.tree, (struct tree_dump_params) {
 		.out_stream = dump_file,
@@ -48,6 +49,7 @@ int main(int argc, char *argv[]) {
 		.serializer = expression_serializer,
 	});
 	fclose(dump_file);
+	*/
 
 	expression_dtor(&input_expr);
 	expression_dtor(&simplified_expr);

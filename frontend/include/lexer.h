@@ -38,6 +38,16 @@ enum LexerTokenType {
 	LXTOK_SQRT,		// sqrt
 	LXTOK_FUNC,		// func
 	LXTOK_RETURN,		// return
+	LXTOK_WHILE,		// while
+	LXTOK_SCRHT,		// scrht
+	LXTOK_SCRWT,		// scrwt
+	LXTOK_DRAW,		// draw
+	LXTOK_SHL,		// <<
+	LXTOK_SHR,		// >>
+	LXTOK_BITAND,		// &
+	LXTOK_BITOR,		// |
+	LXTOK_MEM_WRITE,	// <-
+	LXTOK_MEM_READ,		// memload
 };
 
 static struct lexer_keyword_tok {
@@ -54,6 +64,11 @@ static struct lexer_keyword_tok {
 	LXKW_DEFINE("sqrt",	LXTOK_SQRT	),
 	LXKW_DEFINE("func",	LXTOK_FUNC	),
 	LXKW_DEFINE("return",	LXTOK_RETURN	),
+	LXKW_DEFINE("while",	LXTOK_WHILE	),
+	LXKW_DEFINE("scrht",	LXTOK_SCRHT	),
+	LXKW_DEFINE("scrwt",	LXTOK_SCRWT	),
+	LXKW_DEFINE("draw",	LXTOK_DRAW	),
+	LXKW_DEFINE("memload",	LXTOK_MEM_READ	),
 	NULL
 
 #undef LXKW_DEFINE

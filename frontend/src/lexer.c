@@ -4,7 +4,7 @@
 
 #include "lexer.h"
 
-#define LEXER_INITIAL_BUFLEN (128)
+#define LEXER_INITIAL_BUFLEN (12800)
 
 #define LEXER_STATUS_GEN(status_) \
 	((struct LexerStatus) {.status = status_, .text_position = -1})
@@ -237,6 +237,8 @@ static LexerStatus lexer_parse_operator(struct lexer *lexer,
 		LXCASE_TOK_TYPE_('^', LXTOK_POW);	
 		LXCASE_TOK_TYPE_(';', LXTOK_SEMICOLON);
 		LXCASE_TOK_TYPE_(',', LXTOK_COMMA);
+		LXCASE_TOK_TYPE_('&', LXTOK_BITAND);
+		LXCASE_TOK_TYPE_('|', LXTOK_BITOR);
 
 		case '<':
 			token_type = LXTOK_LESS_CMP;
@@ -244,12 +246,24 @@ static LexerStatus lexer_parse_operator(struct lexer *lexer,
 				text_cur_ptr++;
 				token_type = LXTOK_LESS_EQ_CMP;
 			}
+			if (*(text_cur_ptr + 1) == '<') {
+				text_cur_ptr++;
+				token_type = LXTOK_SHL;
+			}
+			if (*(text_cur_ptr + 1) == '-') {
+				text_cur_ptr++;
+				token_type = LXTOK_MEM_WRITE;
+			}
 			break;
 		case '>':
 			token_type = LXTOK_GREATER_CMP;
 			if (*(text_cur_ptr + 1) == '=') {
 				text_cur_ptr++;
 				token_type = LXTOK_GREATER_EQ_CMP;
+			}
+			if (*(text_cur_ptr + 1) == '>') {
+				text_cur_ptr++;
+				token_type = LXTOK_SHR;
 			}
 			break;
 		case '!':

@@ -171,16 +171,37 @@ static int getFunKeywordOp(struct expression *expr, struct lexer *lexer,
 	}
 
 	size_t op_idx = 0;
-	if (tok->tok_type == LXTOK_PRINT) {
-		op_idx = EXPR_IDX_PRINT;
-	} else if (tok->tok_type == LXTOK_INPUT) {
-		op_idx = EXPR_IDX_INPUT;
-	} else if (tok->tok_type == LXTOK_SQRT) {
-		op_idx = EXPR_IDX_SQRT;
-	}  else if (tok->tok_type == LXTOK_RETURN) {
-		op_idx = EXPR_IDX_RETURN;
-	} else {
-		return S_CONTINUE;
+	int is_no_arg = 0;
+	switch ((int)tok->tok_type) {
+		case LXTOK_PRINT:
+			op_idx = EXPR_IDX_PRINT;
+			break;
+		case LXTOK_INPUT:
+			op_idx = EXPR_IDX_INPUT;
+			is_no_arg = 1;
+			break;
+		case LXTOK_SQRT:
+			op_idx = EXPR_IDX_SQRT;
+			break;
+		case LXTOK_RETURN:
+			op_idx = EXPR_IDX_RETURN;
+			break;
+		case LXTOK_SCRHT:
+			op_idx = EXPR_IDX_SCRHT;
+			is_no_arg = 1;
+			break;
+		case LXTOK_SCRWT:
+			op_idx = EXPR_IDX_SCRWT;
+			is_no_arg = 1;
+			break;
+		case LXTOK_DRAW:
+			op_idx = EXPR_IDX_DRAW;
+			break;
+		case LXTOK_MEM_READ:
+			op_idx = EXPR_IDX_MEM_READ;
+			break;
+		default:
+			return S_CONTINUE;
 	}
 
 	(*lexer_idx)++;
@@ -194,10 +215,10 @@ static int getFunKeywordOp(struct expression *expr, struct lexer *lexer,
 		return PARSER_RET_STATUS(ret);
 	}
 
-	if (op_idx != EXPR_IDX_INPUT && ret == S_EMPTY_EXPRESSION) {
+	if (!is_no_arg && ret == S_EMPTY_EXPRESSION) {
 		return PARSER_RET_STATUS(S_FAIL);
 	}
-	if (op_idx == EXPR_IDX_INPUT && ret != S_EMPTY_EXPRESSION) {
+	if (is_no_arg && ret != S_EMPTY_EXPRESSION) {
 		return PARSER_RET_STATUS(S_FAIL);
 	}
 
@@ -474,7 +495,11 @@ static int getComprasion(struct expression *expr, struct lexer *lexer,
 		 tok->tok_type == LXTOK_LESS_CMP	||
 		 tok->tok_type == LXTOK_NOT_EQUALS_CMP	||
 		 tok->tok_type == LXTOK_GREATER_EQ_CMP	||
-		 tok->tok_type == LXTOK_LESS_EQ_CMP)) {	
+		 tok->tok_type == LXTOK_LESS_EQ_CMP	||
+		 tok->tok_type == LXTOK_SHL		||
+		 tok->tok_type == LXTOK_SHR		||
+		 tok->tok_type == LXTOK_BITAND		||
+		 tok->tok_type == LXTOK_BITOR		)) {	
 
 		(*lexer_idx)++;
 
@@ -504,6 +529,18 @@ static int getComprasion(struct expression *expr, struct lexer *lexer,
 				break;
 			case LXTOK_LESS_EQ_CMP:
 				op_idx = EXPR_IDX_LESS_EQ_CMP;
+				break;
+			case LXTOK_SHL:
+				op_idx = EXPR_IDX_SHL;
+				break;
+			case LXTOK_SHR:
+				op_idx = EXPR_IDX_SHR;
+				break;
+			case LXTOK_BITAND:
+				op_idx = EXPR_IDX_BITAND;
+				break;
+			case LXTOK_BITOR:
+				op_idx = EXPR_IDX_BITOR;
 				break;
 			default:
 				assert (0 && "unreachable");
@@ -554,6 +591,8 @@ static int getDeclarationOrAssignment(struct expression *expr, struct lexer *lex
 		op_idx = EXPR_IDX_DECL_ASSIGN;
 	} else if (next_tok->tok_type == LXTOK_ASSIGN) {
 		op_idx = EXPR_IDX_ASSIGN;
+	}  else if (next_tok->tok_type == LXTOK_MEM_WRITE) {
+		op_idx = EXPR_IDX_MEM_WRITE;
 	} else {
 		tnode_recursive_dtor(lnode, NULL);
 		(*lexer_idx)--;
@@ -690,6 +729,49 @@ static int getConditionalExpression(struct expression *expr, struct lexer *lexer
 	return PARSER_RET_STATUS(S_OK);
 }
 
+static int getCycleExpression(struct expression *expr, struct lexer *lexer,
+			 size_t *lexer_idx, struct tree_node **node) {
+	assert (expr);
+	assert (lexer);
+	assert (lexer_idx);
+	assert (node);
+
+	struct lexer_token *tok = NULL;
+	if (!(tok = lexer_get_token(lexer, *lexer_idx))) {
+		return S_CONTINUE;
+	}
+	if (tok->tok_type != LXTOK_WHILE) {
+		return S_CONTINUE;
+	}
+
+	(*lexer_idx)++;
+
+	int ret = 0;
+
+	struct tree_node *if_expr_node = NULL;
+	ret = getRoundBracketsExpression(expr, lexer, lexer_idx, &if_expr_node);
+	if (ret) {
+		return PARSER_RET_STATUS(ret);
+	}
+
+	struct tree_node *if_positive_node = NULL;
+	ret = getCodeBlock(expr, lexer, lexer_idx, &if_positive_node);
+	if (ret) {
+		tnode_recursive_dtor(if_expr_node, NULL);
+		return PARSER_RET_STATUS(ret);
+	}
+
+	*node = expr_create_operator_tnode(expression_operators[EXPR_IDX_WHILE],
+					if_expr_node, if_positive_node);
+
+	if (!(*node)) {
+		tnode_recursive_dtor(if_expr_node, NULL);
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+
+	return PARSER_RET_STATUS(S_OK);
+}
+
 static int getLangPunct(struct expression *expr, struct lexer *lexer,
 				  size_t *lexer_idx, struct tree_node **node) {
 	assert (expr);
@@ -700,6 +782,11 @@ static int getLangPunct(struct expression *expr, struct lexer *lexer,
 	int ret = 0;
 
 	ret = CALL_PARSER(getConditionalExpression, expr, lexer, lexer_idx, node);
+	if (ret != S_CONTINUE) {
+		return PARSER_RET_STATUS(ret);
+	}
+
+	ret = CALL_PARSER(getCycleExpression, expr, lexer, lexer_idx, node);
 	if (ret != S_CONTINUE) {
 		return PARSER_RET_STATUS(ret);
 	}

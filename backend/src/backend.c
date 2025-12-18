@@ -381,6 +381,33 @@ static TranslatorStatus tpush_operator(struct tree_node *tnode,
 		case EXPR_IDX_SQRT:
 			fprintf(ctx->asm_output, "sqrt r0 r0\n" "push r0\n");
 			break;
+		case EXPR_IDX_SCRHT:
+			fprintf(ctx->asm_output, "scrhw r0 r1\n" "push r0\n");
+			break;
+		case EXPR_IDX_SCRWT:
+			fprintf(ctx->asm_output, "scrhw r0 r1\n" "push r1\n");
+			break;
+		case EXPR_IDX_DRAW:
+			fprintf(ctx->asm_output, "draw r0\n" "push r0\n");
+			break;
+		case EXPR_IDX_SHL:
+			fprintf(ctx->asm_output, "shl r0 r0 r1\n" "push r0\n");
+			break;
+		case EXPR_IDX_SHR:
+			fprintf(ctx->asm_output, "shr r0 r0 r1\n" "push r0\n");
+			break;
+		case EXPR_IDX_MEM_WRITE:
+			fprintf(ctx->asm_output, "stm r0 r1\n" "push r1\n");
+			break;
+		case EXPR_IDX_MEM_READ:
+			fprintf(ctx->asm_output, "ldm r0 r1\n" "push r1\n");
+			break;
+		case EXPR_IDX_BITAND:
+			fprintf(ctx->asm_output, "and r0 r0 r1\n" "push r0\n");
+			break;
+		case EXPR_IDX_BITOR:
+			fprintf(ctx->asm_output, "or r0 r0 r1\n" "push r0\n");
+			break;
 		case EXPR_IDX_RETURN:
 			// without push!
 			fprintf(ctx->asm_output, "ret\n");
@@ -516,6 +543,44 @@ static TranslatorStatus translate_conditional(struct tree_node *tnode,
 		translate_statement(if_negative_node, ctx);
 	}
 
+	fprintf(ctx->asm_output, "._jmp_tps__%zu:\n", out_jmp_idx);
+
+	return TRANSLATOR_STATUS_GEN(BTRST_OK);
+}
+
+static TranslatorStatus translate_cycle(struct tree_node *tnode,
+				     struct translation_context *ctx) {
+	assert (ctx);
+	assert (tnode);
+	assert (EXPR_TNODE_IS_OPERATOR(tnode));
+
+	struct expression_operator *op = tnode->value.ptr;
+	assert (op->idx == EXPR_IDX_WHILE);
+
+	if (!tnode->left) {
+		return TRANSLATOR_STATUS_GEN(BTRST_TREE_INVALID);
+	}
+
+	struct tree_node *if_positive_node = tnode->right;
+	size_t begin_jmp_idx = ctx->jmp_idx++;
+	size_t out_jmp_idx = ctx->jmp_idx++;
+
+
+	fprintf(ctx->asm_output, "._jmp_tps__%zu:\n", begin_jmp_idx);
+
+	TranslatorStatus ret = tpush_expression(tnode->left, ctx); 
+	if (TRANSLATOR_STATUS(ret)) {
+		return ret;
+	};
+
+
+	fprintf(ctx->asm_output, "pop r0\n" "ldc r1 $0\n" "cmp r0 r1\n");
+
+	fprintf(ctx->asm_output, "jmp.eq ._jmp_tps__%zu\n", out_jmp_idx);
+
+	translate_statement(if_positive_node, ctx);
+	
+	fprintf(ctx->asm_output, "jmp ._jmp_tps__%zu\n", begin_jmp_idx);
 	fprintf(ctx->asm_output, "._jmp_tps__%zu:\n", out_jmp_idx);
 
 	return TRANSLATOR_STATUS_GEN(BTRST_OK);
@@ -672,6 +737,10 @@ static TranslatorStatus translate_statement(struct tree_node *tnode,
 
 	if (op->idx == EXPR_IDX_IF) {
 		return translate_conditional(tnode, ctx);
+	}
+
+	if (op->idx == EXPR_IDX_WHILE) {
+		return translate_cycle(tnode, ctx);
 	}
 
 	if (op->idx == EXPR_IDX_MAIN || op->idx == EXPR_IDX_FUNC) {
