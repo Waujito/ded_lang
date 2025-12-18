@@ -36,6 +36,8 @@ enum LexerTokenType {
 	LXTOK_IF,		// if
 	LXTOK_ELSE,		// else
 	LXTOK_SQRT,		// sqrt
+	LXTOK_FUNC,		// func
+	LXTOK_RETURN,		// return
 };
 
 static struct lexer_keyword_tok {
@@ -50,6 +52,8 @@ static struct lexer_keyword_tok {
 	LXKW_DEFINE("if",	LXTOK_IF	),
 	LXKW_DEFINE("else",	LXTOK_ELSE	),
 	LXKW_DEFINE("sqrt",	LXTOK_SQRT	),
+	LXKW_DEFINE("func",	LXTOK_FUNC	),
+	LXKW_DEFINE("return",	LXTOK_RETURN	),
 	NULL
 
 #undef LXKW_DEFINE

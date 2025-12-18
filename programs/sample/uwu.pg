@@ -1,4 +1,5 @@
-{
+func main() {
+	uwu();
 	a := input();
 	b := input();
 	c := input();
@@ -19,4 +20,11 @@
 	} else {
 		print(0);
 	}
+
+}
+
+func uwu() {
+	uw:=2;
+	return(0);
+	print(uw);
 }

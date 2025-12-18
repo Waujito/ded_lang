@@ -34,6 +34,8 @@ static int getComprasion(struct expression *expr, struct lexer *lexer,
 			 size_t *lexer_idx, struct tree_node **node);
 static int getCodeBlock(struct expression *expr, struct lexer *lexer,
 				  size_t *lexer_idx, struct tree_node **node);
+static int getCommaSeparatedList(struct expression *expr, struct lexer *lexer,
+			 size_t *lexer_idx, struct tree_node **node);
 
 static int getNumber(struct expression *expr, struct lexer *lexer,
 			 size_t *lexer_idx, struct tree_node **node) {
@@ -90,6 +92,72 @@ static int getVariable(struct expression *expr, struct lexer *lexer,
 	return PARSER_RET_STATUS(S_OK);
 }
 
+static int getFunctionCall(struct expression *expr, struct lexer *lexer,
+			 size_t *lexer_idx, struct tree_node **node) {
+	assert (expr);
+	assert (lexer);
+	assert (lexer_idx);
+	assert (node);
+
+	struct lexer_token *tok = NULL;
+	if (!((tok = lexer_get_token(lexer, *lexer_idx)) &&
+		tok->tok_type == LXTOK_VARIABLE)) {
+		return S_CONTINUE;
+	}
+	(*lexer_idx)++;
+
+	struct expression_variable *var = expr_find_variable(expr, tok->word);
+	if (!var) {
+		if (expr_push_variable(expr, tok->word, &var)) {
+			return PARSER_RET_STATUS(S_FAIL);
+		}
+	}
+
+	if (!((tok = lexer_get_token(lexer, *lexer_idx)) &&
+		tok->tok_type == LXTOK_BROUND_OPEN)) {
+		(*lexer_idx)--;
+		return S_CONTINUE;
+	}
+	(*lexer_idx)++;
+
+	struct tree_node *call_args = NULL;
+	if (!((tok = lexer_get_token(lexer, *lexer_idx)) &&
+		tok->tok_type == LXTOK_BROUND_CLOSE)) {
+
+		int ret = CALL_PARSER(getCommaSeparatedList, expr, lexer,
+					lexer_idx, &call_args);
+		if (ret) {
+			return PARSER_RET_STATUS(ret);
+		}
+	}
+	
+
+	if (!((tok = lexer_get_token(lexer, *lexer_idx)) &&
+		tok->tok_type == LXTOK_BROUND_CLOSE)) {
+		tnode_recursive_dtor(call_args, NULL);
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+	(*lexer_idx)++;	
+
+	struct tree_node *func_name = expr_create_variable_tnode(var->var_name);
+
+	if (!func_name) {
+		tnode_recursive_dtor(call_args, NULL);
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+
+	*node = expr_create_operator_tnode(expression_operators[EXPR_IDX_CALL],
+						func_name, call_args);
+
+	if (!(*node)) {
+		tnode_recursive_dtor(call_args, NULL);
+		tnode_recursive_dtor(func_name, NULL);
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+
+	return PARSER_RET_STATUS(S_OK);
+}
+
 static int getFunKeywordOp(struct expression *expr, struct lexer *lexer,
 			 size_t *lexer_idx, struct tree_node **node) {
 	assert (expr);
@@ -109,7 +177,9 @@ static int getFunKeywordOp(struct expression *expr, struct lexer *lexer,
 		op_idx = EXPR_IDX_INPUT;
 	} else if (tok->tok_type == LXTOK_SQRT) {
 		op_idx = EXPR_IDX_SQRT;
-	} else{
+	}  else if (tok->tok_type == LXTOK_RETURN) {
+		op_idx = EXPR_IDX_RETURN;
+	} else {
 		return S_CONTINUE;
 	}
 
@@ -155,6 +225,10 @@ static int getC(struct expression *expr, struct lexer *lexer,
 	}
 
 	if ((ret = CALL_PARSER(getFunKeywordOp, expr, lexer, lexer_idx, node)) != S_CONTINUE) {
+		return PARSER_RET_STATUS(ret);
+	}
+
+	if ((ret = CALL_PARSER(getFunctionCall, expr, lexer, lexer_idx, node)) != S_CONTINUE) {
 		return PARSER_RET_STATUS(ret);
 	}
 
@@ -694,8 +768,7 @@ static int getCodeBlock(struct expression *expr, struct lexer *lexer,
 	return PARSER_RET_STATUS(CALL_PARSER(getLangPunct, expr, lexer, lexer_idx, node));
 }
 
-/*
-static int getStatements(struct expression *expr, struct lexer *lexer,
+static int getCommaSeparatedList(struct expression *expr, struct lexer *lexer,
 			 size_t *lexer_idx, struct tree_node **node) {
 	assert (expr);
 	assert (lexer);
@@ -705,9 +778,168 @@ static int getStatements(struct expression *expr, struct lexer *lexer,
 	int ret = 0;
 
 	struct tree_node *lnode = NULL;
-	while (*lexer_idx < lexer->tokens.len) {
+	if ((ret = CALL_PARSER(getComprasion, expr, lexer, lexer_idx, &lnode))) {
+		return PARSER_RET_STATUS(ret);
+	}
+
+	struct lexer_token *tok = NULL;
+	while ((tok = lexer_get_token(lexer, *lexer_idx)) &&
+		tok->tok_type == LXTOK_COMMA) {
+		(*lexer_idx)++;
+
 		struct tree_node *rnode = NULL;
-		if ((ret = CALL_PARSER(getLangPunct, expr, lexer, lexer_idx, &rnode))) {
+		if ((ret = CALL_PARSER(getComprasion, expr, lexer, lexer_idx, &rnode))) {
+			tnode_recursive_dtor(lnode, NULL);
+			return PARSER_RET_STATUS(ret);
+		}
+
+		struct tree_node *mnode = NULL;
+
+		mnode = expr_create_operator_tnode(
+			expression_operators[EXPR_IDX_COMMA], lnode, rnode);
+
+
+		if (!mnode) {
+			tnode_recursive_dtor(lnode, NULL);
+			tnode_recursive_dtor(rnode, NULL);
+			return PARSER_RET_STATUS(S_FAIL);
+		}
+
+		lnode = mnode;
+	}
+
+	*node = lnode;
+
+	return PARSER_RET_STATUS(S_OK);
+
+}
+
+static int getArgumentsList(struct expression *expr, struct lexer *lexer,
+			 size_t *lexer_idx, struct tree_node **node) {
+	assert (expr);
+	assert (lexer);
+	assert (lexer_idx);
+	assert (node);
+
+	int ret = 0;
+
+	struct lexer_token *tok = NULL;
+
+	if ((tok = lexer_get_token(lexer, *lexer_idx)) &&
+		tok->tok_type == LXTOK_BROUND_OPEN) {
+		(*lexer_idx)++;
+
+		if (!((tok = lexer_get_token(lexer, *lexer_idx)) &&
+			tok->tok_type == LXTOK_BROUND_CLOSE)) {
+			if ((ret = CALL_PARSER(getCommaSeparatedList, expr, lexer,
+						lexer_idx, node))) {
+				return PARSER_RET_STATUS(ret);
+			}
+
+			ret = S_OK;
+		} else {
+			*node = NULL;
+			ret = S_OK;
+		}
+
+		if (!((tok = lexer_get_token(lexer, *lexer_idx)) &&
+			tok->tok_type == LXTOK_BROUND_CLOSE)) {
+			return PARSER_RET_STATUS(S_FAIL);
+		}
+		(*lexer_idx)++;
+
+
+		return ret;
+	}
+
+	return S_CONTINUE;
+}
+
+static int getFunc(struct expression *expr, struct lexer *lexer,
+				size_t *lexer_idx, struct tree_node **node) {
+	assert (expr);
+	assert (lexer);
+	assert (lexer_idx);
+	assert (node);
+
+	int ret = 0;
+	struct lexer_token *tok = NULL;
+	if (!((tok = lexer_get_token(lexer, *lexer_idx)) &&
+		tok->tok_type == LXTOK_FUNC)) {
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+
+	(*lexer_idx)++;
+
+	struct tree_node *func_name = NULL;
+	if (CALL_PARSER(getVariable, expr, lexer, lexer_idx, &func_name)) {
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+
+	int is_main = 0;
+	if (!strcmp(func_name->value.varname, "main")) {
+		is_main = 1;
+	}
+
+	struct tree_node *args_list = NULL;
+	if (CALL_PARSER(getArgumentsList, expr, lexer, lexer_idx, &args_list)) {
+		tnode_recursive_dtor(func_name, NULL);
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+
+	struct tree_node *func_body = NULL;
+	if (CALL_PARSER(getCodeBlock, expr, lexer, lexer_idx, &func_body)) {
+		tnode_recursive_dtor(func_name, NULL);
+		tnode_recursive_dtor(args_list, NULL);
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+
+
+	struct tree_node *func_declaration = expr_create_operator_tnode(
+		expression_operators[EXPR_IDX_COMMA], func_name, args_list);
+
+	if (!func_declaration) {
+		tnode_recursive_dtor(func_name, NULL);
+		tnode_recursive_dtor(args_list, NULL);
+		tnode_recursive_dtor(func_body, NULL);
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+	func_name = NULL;
+	args_list = NULL;
+
+	size_t func_idx = is_main ? EXPR_IDX_MAIN : EXPR_IDX_FUNC;
+
+	struct tree_node *func = expr_create_operator_tnode(
+		expression_operators[func_idx], func_declaration, func_body);
+
+	if (!func) {
+		tnode_recursive_dtor(func_declaration, NULL);
+		tnode_recursive_dtor(func_body, NULL);
+		return PARSER_RET_STATUS(S_FAIL);
+	}
+	func_declaration = NULL;
+	func_body = NULL;
+
+	*node = func;
+
+	return PARSER_RET_STATUS(S_OK);
+}
+
+static int getFunctions(struct expression *expr, struct lexer *lexer,
+				size_t *lexer_idx, struct tree_node **node) {
+	assert (expr);
+	assert (lexer);
+	assert (lexer_idx);
+	assert (node);
+
+	int ret = 0;
+	struct lexer_token *tok = NULL;
+	struct tree_node *lnode = NULL;
+	while (((tok = lexer_get_token(lexer, *lexer_idx)) &&
+		tok->tok_type == LXTOK_FUNC)) {
+
+		struct tree_node *rnode = NULL;
+		if ((ret = CALL_PARSER(getFunc, expr, lexer, lexer_idx, &rnode))) {
 			tnode_recursive_dtor(lnode, NULL);
 			return PARSER_RET_STATUS(ret);
 		}
@@ -739,7 +971,6 @@ static int getStatements(struct expression *expr, struct lexer *lexer,
 
 	return PARSER_RET_STATUS(S_OK);
 }
-*/
 
 static int getTerminator(struct expression *expr, struct lexer *lexer,
 			 size_t *lexer_idx, struct tree_node **node) {
@@ -766,7 +997,7 @@ static int getG(struct expression *expr, struct lexer *lexer,
 
 	int ret = 0;
 
-	if ((ret = CALL_PARSER(getCodeBlock, expr, lexer, lexer_idx, node))) {
+	if ((ret = CALL_PARSER(getFunctions, expr, lexer, lexer_idx, node))) {
 		return PARSER_RET_STATUS(ret);
 	}
 

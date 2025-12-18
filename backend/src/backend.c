@@ -9,6 +9,12 @@ struct variable {
 	size_t var_pointer;
 };
 
+struct function {
+	const char *func_name;
+	size_t func_pointer;
+	size_t n_args;
+};
+
 #define TRANSLATOR_STATUS_GEN(status_) \
 	((struct TranslatorStatus) {.status = status_})
 
@@ -18,6 +24,7 @@ struct translation_context {
 
 	// of struct variable
 	struct pvector variables;
+	struct pvector functions;
 
 	// Internal jump tracking index
 	// Helps to escape name overlaps
@@ -27,7 +34,8 @@ struct translation_context {
 static TranslatorStatus translate_statement(struct tree_node *tnode,
 				     struct translation_context *ctx);
 
-static struct variable *find_variable(struct translation_context *ctx, const char *varname) {
+static struct variable *find_variable(struct translation_context *ctx,
+				      const char *varname) {
 	assert (ctx);
 	assert (varname);
 
@@ -71,6 +79,64 @@ static TranslatorStatus push_variable(struct translation_context *ctx, const cha
 	struct variable *rvar = NULL;
 	if (pvector_get(&ctx->variables, var_idx, (void **)&rvar)
 		|| rvar->var_pointer != var.var_pointer) {
+		log_error("pvector_get error (normally unreachable)");
+		return TRANSLATOR_STATUS_GEN(BTRST_INTERNAL_FAILURE);
+	}
+
+	if (nvar) {
+		*nvar = rvar;
+	}
+
+	return TRANSLATOR_STATUS_GEN(BTRST_OK);
+}
+
+static struct function *find_function(struct translation_context *ctx,
+				      const char *funcname) {
+	assert (ctx);
+	assert (funcname);
+
+	for (size_t i = 0; i < ctx->functions.len; i++) {
+      		struct function *func = NULL;	
+		if (pvector_get(&ctx->functions, i, (void **)&func)) {
+			log_error("pvector_get error (normally unreachable)");
+			return NULL;
+		}
+
+		if (!strcmp(funcname, func->func_name)) {
+			return func;
+		}
+	}
+
+	return NULL;
+}
+
+static TranslatorStatus push_function(struct translation_context *ctx,
+				      const char *funcname, size_t n_args,
+				      struct function **nvar) {
+	assert (ctx);
+	assert (funcname);
+
+	if (find_function(ctx, funcname)) {
+		log_error("Already declared function: %s", funcname);
+		return TRANSLATOR_STATUS_GEN(BTRST_ALREADY_DECLARED_VAR);
+	}
+
+	size_t func_idx = ctx->functions.len;
+
+	struct function var = {
+		.func_name = funcname,
+		.func_pointer = func_idx,
+		.n_args = n_args,
+	};
+
+	if (pvector_push_back(&ctx->functions, &var)) {
+		log_error("pvector_push_back: Allocation error");
+		return TRANSLATOR_STATUS_GEN(BTRST_ALLOCATION);
+	}
+
+	struct function *rvar = NULL;
+	if (pvector_get(&ctx->functions, func_idx, (void **)&rvar)
+		|| rvar->func_pointer != var.func_pointer) {
 		log_error("pvector_get error (normally unreachable)");
 		return TRANSLATOR_STATUS_GEN(BTRST_INTERNAL_FAILURE);
 	}
@@ -167,6 +233,40 @@ static TranslatorStatus tpush_cmp_r01(struct tree_node *tnode,
 	return TRANSLATOR_STATUS_GEN(BTRST_OK);
 }
 
+static TranslatorStatus tpush_func_call(struct tree_node *tnode,
+					struct translation_context *ctx) {
+	assert (ctx);
+	assert (tnode);
+	assert (EXPR_TNODE_IS_OPERATOR(tnode));
+
+	struct expression_operator *op = tnode->value.ptr;
+	assert (op->idx == EXPR_IDX_CALL);
+
+	if (!tnode->left || !EXPR_TNODE_IS_VARIABLE(tnode->left)) {
+		return TRANSLATOR_STATUS_GEN(BTRST_TREE_INVALID);
+	}
+	struct tree_node *func_name = tnode->left;
+	struct tree_node *func_args = tnode->right;
+	size_t n_args = 0;
+
+	struct function *func = find_function(ctx, func_name->value.varname); 
+	if (!func) {
+		TranslatorStatus ret = push_function(ctx, func_name->value.varname,
+					n_args, &func);
+		if (TRANSLATOR_STATUS(ret)) {
+			return ret;
+		}
+	};
+
+	if (n_args != func->n_args) {
+		return TRANSLATOR_STATUS_GEN(BTRST_TREE_INVALID);
+	}
+
+	fprintf(ctx->asm_output, "call .func_%s\n" "push r0\n", func->func_name);
+
+	return TRANSLATOR_STATUS_GEN(BTRST_OK);
+}
+
 static TranslatorStatus tpush_operator(struct tree_node *tnode,
 					struct translation_context *ctx) {
 
@@ -206,6 +306,8 @@ static TranslatorStatus tpush_operator(struct tree_node *tnode,
 	  				 "pop r0\n");
 	} else if (op->type == EXPR_OP_T_NOARG) {
 		// Nothing here :) !!
+	} else if (op->idx == EXPR_IDX_CALL) {
+		return tpush_func_call(tnode, ctx);
 	} else {
 		log_error("Attempt to evaluate non-evaluateable");
 		return TRANSLATOR_STATUS_GEN(BTRST_TREE_INVALID);
@@ -239,6 +341,10 @@ static TranslatorStatus tpush_operator(struct tree_node *tnode,
 			break;
 		case EXPR_IDX_SQRT:
 			fprintf(ctx->asm_output, "sqrt r0 r0\n" "push r0\n");
+			break;
+		case EXPR_IDX_RETURN:
+			// without push!
+			fprintf(ctx->asm_output, "ret\n");
 			break;
 		default:
 			log_error("Not implemented :(");
@@ -376,6 +482,60 @@ static TranslatorStatus translate_conditional(struct tree_node *tnode,
 	return TRANSLATOR_STATUS_GEN(BTRST_OK);
 }
 
+static TranslatorStatus translate_function(struct tree_node *tnode,
+				     struct translation_context *ctx) {
+	assert (ctx);
+	assert (tnode);
+	assert (EXPR_TNODE_IS_OPERATOR(tnode));
+
+	struct expression_operator *op = tnode->value.ptr;
+	assert (op->idx == EXPR_IDX_FUNC || op->idx == EXPR_IDX_MAIN);
+
+	if (!tnode->left || !EXPR_TNODE_IS_OPERATOR(tnode->left)) {
+		return TRANSLATOR_STATUS_GEN(BTRST_TREE_INVALID);
+	}
+
+	struct tree_node *func_declaration = tnode->left;
+	struct expression_operator *decl_op = func_declaration->value.ptr;
+	if (decl_op->idx != EXPR_IDX_COMMA) {
+		return TRANSLATOR_STATUS_GEN(BTRST_TREE_INVALID);
+	}
+
+	if (!func_declaration->left || !EXPR_TNODE_IS_VARIABLE(func_declaration->left)) {
+		return TRANSLATOR_STATUS_GEN(BTRST_TREE_INVALID);
+	}
+	struct tree_node *func_name = func_declaration->left;
+	struct tree_node *func_args = func_declaration->right;
+	size_t n_args = 0;
+	TranslatorStatus ret = TRANSLATOR_STATUS_GEN(BTRST_OK);
+
+	struct function *func = find_function(ctx, func_name->value.varname); 
+	if (!func) {
+		ret = push_function(ctx, func_name->value.varname,
+					n_args, &func);
+		if (TRANSLATOR_STATUS(ret)) {
+			return ret;
+		}
+	};
+
+	if (n_args != func->n_args) {
+		return TRANSLATOR_STATUS_GEN(BTRST_TREE_INVALID);
+	}
+
+	struct tree_node *func_body = tnode->right;
+
+	if (op->idx == EXPR_IDX_FUNC) {
+		fprintf(ctx->asm_output, ".func_%s:\n", func->func_name);
+	} else if (op->idx == EXPR_IDX_MAIN) {
+		fprintf(ctx->asm_output, "._start:\n");
+	}
+
+	ret = translate_statement(func_body, ctx);
+
+	fprintf(ctx->asm_output, "ret\n");
+
+	return ret;
+}
 
 static TranslatorStatus translate_statement(struct tree_node *tnode,
 				     struct translation_context *ctx) {
@@ -428,7 +588,11 @@ static TranslatorStatus translate_statement(struct tree_node *tnode,
 	if (op->idx == EXPR_IDX_IF) {
 		return translate_conditional(tnode, ctx);
 	}
-	
+
+	if (op->idx == EXPR_IDX_MAIN || op->idx == EXPR_IDX_FUNC) {
+		return translate_function(tnode, ctx);
+	}	
+
 	// Dummy expression
 	ret = tpush_expression(tnode, ctx);
 	fprintf(ctx->asm_output, "pop r0\n");
@@ -440,6 +604,8 @@ static TranslatorStatus translator_tnode(struct tree_node *tnode,
 		     struct translation_context *ctx) {
 	assert (tnode);
 	assert (ctx);
+
+	fprintf(ctx->asm_output, "call ._start\n" "dump\n" "halt\n");
 
 	return translate_statement(tnode, ctx);
 }
@@ -456,11 +622,12 @@ TranslatorStatus backend_translator(struct expression *expr, FILE *asm_output) {
 	};
 
 	pvector_init(&ctx.variables, sizeof(struct variable));
+	pvector_init(&ctx.functions, sizeof(struct function));
 
 	TranslatorStatus ret = translator_tnode(expr->tree.root, &ctx);
 
 	pvector_destroy(&ctx.variables);
-	fprintf(asm_output, "dump\n");
+	pvector_destroy(&ctx.functions);
 
 	return ret;
 }

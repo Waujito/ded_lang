@@ -1,3 +1,10 @@
+call ._start
+dump
+halt
+._start:
+call .func_uwu
+push r0
+pop r0
 input r0
 push r0
 pop r0
@@ -227,4 +234,23 @@ push r0
 pop r0
 ._jmp_tps__4:
 ._jmp_tps__1:
-dump
+ret
+.func_uwu:
+ldc r0 $2
+push r0
+pop r0
+ldc r1 $7
+stm r1 r0
+ldc r0 $0
+push r0
+pop r0
+ret
+pop r0
+ldc r0 $7
+ldm r0 r0
+push r0
+pop r0
+print r0
+push r0
+pop r0
+ret
