@@ -107,7 +107,9 @@ static int getFunKeywordOp(struct expression *expr, struct lexer *lexer,
 		op_idx = EXPR_IDX_PRINT;
 	} else if (tok->tok_type == LXTOK_INPUT) {
 		op_idx = EXPR_IDX_INPUT;
-	} else {
+	} else if (tok->tok_type == LXTOK_SQRT) {
+		op_idx = EXPR_IDX_SQRT;
+	} else{
 		return S_CONTINUE;
 	}
 
@@ -197,7 +199,7 @@ static int getRoundBracketsExpression(struct expression *expr, struct lexer *lex
 		(*lexer_idx)++;
 
 
-		return PARSER_RET_STATUS(ret);
+		return ret;
 	}
 
 	return S_CONTINUE;

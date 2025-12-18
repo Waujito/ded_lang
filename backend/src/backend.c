@@ -237,6 +237,9 @@ static TranslatorStatus tpush_operator(struct tree_node *tnode,
 		case EXPR_IDX_INPUT:
 			fprintf(ctx->asm_output, "input r0\n" "push r0\n");
 			break;
+		case EXPR_IDX_SQRT:
+			fprintf(ctx->asm_output, "sqrt r0 r0\n" "push r0\n");
+			break;
 		default:
 			log_error("Not implemented :(");
 			return TRANSLATOR_STATUS_GEN(BTRST_INTERNAL_FAILURE);

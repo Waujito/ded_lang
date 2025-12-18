@@ -33,8 +33,9 @@ enum LexerTokenType {
 	LXTOK_DECL_ASSIGN,	// :=
 	LXTOK_PRINT,		// print
 	LXTOK_INPUT,		// input
-	LXTOK_IF,		// input
-	LXTOK_ELSE,		// input
+	LXTOK_IF,		// if
+	LXTOK_ELSE,		// else
+	LXTOK_SQRT,		// sqrt
 };
 
 static struct lexer_keyword_tok {
@@ -48,6 +49,7 @@ static struct lexer_keyword_tok {
 	LXKW_DEFINE("print",	LXTOK_PRINT	),
 	LXKW_DEFINE("if",	LXTOK_IF	),
 	LXKW_DEFINE("else",	LXTOK_ELSE	),
+	LXKW_DEFINE("sqrt",	LXTOK_SQRT	),
 	NULL
 
 #undef LXKW_DEFINE
