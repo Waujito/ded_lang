@@ -1,3 +1,7 @@
+call ._start
+dump
+halt
+._start:
 input r0
 push r0
 pop r0
@@ -227,4 +231,4 @@ push r0
 pop r0
 ._jmp_tps__4:
 ._jmp_tps__1:
-dump
+ret
