@@ -233,6 +233,40 @@ static TranslatorStatus tpush_cmp_r01(struct tree_node *tnode,
 	return TRANSLATOR_STATUS_GEN(BTRST_OK);
 }
 
+static TranslatorStatus translate_function_call_arguments(struct tree_node *tnode,
+				     struct translation_context *ctx, size_t *n_args) {
+	assert (ctx);
+
+	TranslatorStatus ret = TRANSLATOR_STATUS_GEN(BTRST_OK);
+	if (!tnode) {
+		return ret;
+	}
+
+	struct expression_operator *op = tnode->value.ptr;
+	
+	if (EXPR_TNODE_IS_OPERATOR(tnode) && op->idx == EXPR_IDX_COMMA) {
+		// Reverse order to push normally
+
+		ret = translate_function_call_arguments(tnode->right, ctx, n_args);
+		if (TRANSLATOR_STATUS(ret)) {
+			return ret;
+		}
+
+		ret = translate_function_call_arguments(tnode->left, ctx, n_args);
+		if (TRANSLATOR_STATUS(ret)) {
+			return ret;
+		}
+	} else {
+		(*n_args)++;
+
+		tpush_expression(tnode, ctx);
+
+		return TRANSLATOR_STATUS_GEN(BTRST_OK);
+	}
+
+	return TRANSLATOR_STATUS_GEN(BTRST_OK);
+}
+
 static TranslatorStatus tpush_func_call(struct tree_node *tnode,
 					struct translation_context *ctx) {
 	assert (ctx);
@@ -248,10 +282,15 @@ static TranslatorStatus tpush_func_call(struct tree_node *tnode,
 	struct tree_node *func_name = tnode->left;
 	struct tree_node *func_args = tnode->right;
 	size_t n_args = 0;
+	TranslatorStatus ret = translate_function_call_arguments(func_args, ctx, &n_args);
+
+	if (TRANSLATOR_STATUS(ret)) {
+		return ret;
+	}
 
 	struct function *func = find_function(ctx, func_name->value.varname); 
 	if (!func) {
-		TranslatorStatus ret = push_function(ctx, func_name->value.varname,
+		ret = push_function(ctx, func_name->value.varname,
 					n_args, &func);
 		if (TRANSLATOR_STATUS(ret)) {
 			return ret;
@@ -482,6 +521,47 @@ static TranslatorStatus translate_conditional(struct tree_node *tnode,
 	return TRANSLATOR_STATUS_GEN(BTRST_OK);
 }
 
+static TranslatorStatus translate_function_arguments(struct tree_node *tnode,
+				     struct translation_context *ctx, size_t *n_args) {
+	assert (ctx);
+
+	TranslatorStatus ret = TRANSLATOR_STATUS_GEN(BTRST_OK);
+	if (!tnode) {
+		return ret;
+	}
+
+	struct expression_operator *op = tnode->value.ptr;
+	if (EXPR_TNODE_IS_OPERATOR(tnode) && op->idx == EXPR_IDX_COMMA) {
+		ret = translate_function_arguments(tnode->left, ctx, n_args);
+		if (TRANSLATOR_STATUS(ret)) {
+			return ret;
+		}
+
+		ret = translate_function_arguments(tnode->right, ctx, n_args);
+		if (TRANSLATOR_STATUS(ret)) {
+			return ret;
+		}
+	} else if (EXPR_TNODE_IS_VARIABLE(tnode)) {
+		(*n_args)++;
+
+		struct variable *var = NULL;
+		ret = push_variable(ctx, tnode->value.varname, &var);
+		if (TRANSLATOR_STATUS(ret)) {
+			return ret;
+		}
+
+		fprintf(ctx->asm_output, "pop r0\n"
+					 "ldc r1 $%zu\n"
+					 "stm r1 r0\n", var->var_pointer);
+
+		return TRANSLATOR_STATUS_GEN(BTRST_OK);
+	} else {
+		return TRANSLATOR_STATUS_GEN(BTRST_TREE_INVALID);
+	}
+
+	return TRANSLATOR_STATUS_GEN(BTRST_OK);
+}
+
 static TranslatorStatus translate_function(struct tree_node *tnode,
 				     struct translation_context *ctx) {
 	assert (ctx);
@@ -507,7 +587,18 @@ static TranslatorStatus translate_function(struct tree_node *tnode,
 	struct tree_node *func_name = func_declaration->left;
 	struct tree_node *func_args = func_declaration->right;
 	size_t n_args = 0;
+
+	if (op->idx == EXPR_IDX_FUNC) {
+		fprintf(ctx->asm_output, ".func_%s:\n", func_name->value.varname);
+	} else if (op->idx == EXPR_IDX_MAIN) {
+		fprintf(ctx->asm_output, "._start:\n");
+	}
+
 	TranslatorStatus ret = TRANSLATOR_STATUS_GEN(BTRST_OK);
+	ret = translate_function_arguments(func_args, ctx, &n_args);
+	if (TRANSLATOR_STATUS(ret)) {
+		return ret;
+	}
 
 	struct function *func = find_function(ctx, func_name->value.varname); 
 	if (!func) {
@@ -522,13 +613,7 @@ static TranslatorStatus translate_function(struct tree_node *tnode,
 		return TRANSLATOR_STATUS_GEN(BTRST_TREE_INVALID);
 	}
 
-	struct tree_node *func_body = tnode->right;
-
-	if (op->idx == EXPR_IDX_FUNC) {
-		fprintf(ctx->asm_output, ".func_%s:\n", func->func_name);
-	} else if (op->idx == EXPR_IDX_MAIN) {
-		fprintf(ctx->asm_output, "._start:\n");
-	}
+	struct tree_node *func_body = tnode->right;	
 
 	ret = translate_statement(func_body, ctx);
 
